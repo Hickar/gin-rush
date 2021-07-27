@@ -1,0 +1,20 @@
+{
+  "app": {
+    "date_format": "27-07-2021",
+    "log_directory": "logs",
+    "log_file_path": "log.log",
+    "log_format": "%s_%s"
+  },
+  "server": {
+    "mode": "debug",
+    "port": 8000
+  },
+  "database": {
+    "type": "mysql",
+    "host": "127.0.0.1",
+    "port": 3306,
+    "user": "root",
+    "password": "super_password",
+    "name": "api_rush"
+  }
+}
