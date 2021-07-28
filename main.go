@@ -35,7 +35,8 @@ func setupRouter() *gin.Engine {
 
 func main() {
 	settings := config.New("./conf/config.json")
-	fmt.Printf(settings.Server.Mode)
+
+	gin.SetMode(settings.Server.Mode)
 	router := setupRouter()
 
 	if err := router.Run(fmt.Sprintf(":%d", settings.Server.Port)); err != nil {

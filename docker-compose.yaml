@@ -3,18 +3,16 @@ version: "3.8"
 services:
   go-api:
     build:
-      context: ./docker/go-api
+      context: ./
       dockerfile: ./docker/go-api/Dockerfile
     image: go-api:latest
     container_name: gin-rush-go
+    ports:
+    - 8080:8080
     restart: unless-stopped
-    command: go run
-    depends_on:
-      - mysql
     networks:
       - internal
 
-  mysql:
-    build:
-      context: ./docker/mysql
-      build: .
+networks:
+  internal:
+    driver: bridge

@@ -7,7 +7,7 @@
   },
   "server": {
     "mode": "debug",
-    "port": 8000
+    "port": 8080
   },
   "database": {
     "type": "mysql",
