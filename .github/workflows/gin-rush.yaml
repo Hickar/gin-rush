@@ -27,7 +27,7 @@ jobs:
       - name: Run tests
         run: go test ./...
       - name: Run linters
-        uses: actions/golangci-lint-action@v2.5.2
+        uses: golangci/golangci-lint-action@v2.5.2
         with:
           args: -c ./.golangci.yaml ./...
       - name: Build
