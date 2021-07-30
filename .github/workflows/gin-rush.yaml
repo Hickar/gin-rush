@@ -1,0 +1,34 @@
+name: gin-rush
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - main
+  pull_request:
+jobs:
+  build:
+    name: Local environment run
+    strategy:
+      matrix:
+        go-version: [ 1.16.6 ]
+        platform: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.16.6'
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: go mod download
+      - name: Run tests
+        run: go test ./...
+      - name: Run linters
+        uses: actions/golangci-lint-action@v2.5.2
+        with:
+          args: -c ./.golangci.yaml ./...
+      - name: Build
+        run: go build
