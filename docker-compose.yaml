@@ -7,8 +7,10 @@ services:
       dockerfile: ./docker/go-api/Dockerfile
     image: go-api:latest
     container_name: gin-rush-go
+    env_file:
+      - ./.env
     ports:
-    - 8080:8080
+      - 8080:8080
     restart: unless-stopped
     networks:
       - internal

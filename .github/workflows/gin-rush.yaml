@@ -31,4 +31,7 @@ jobs:
         with:
           args: -c ./.golangci.yaml ./...
       - name: Build
+        env:
+          ROLLBAR_TOKEN: ${{ secrets.ROLLBAR_TOKEN }}
+          ROLLBAR_ENV_MODE: production
         run: go build

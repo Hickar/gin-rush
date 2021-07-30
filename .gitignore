@@ -2,7 +2,8 @@
 .vscode
 .idea
 logs
-.env
-.env.*
+*.env
+*.env.*
+!*.env.example
 vendor
 logs/*
