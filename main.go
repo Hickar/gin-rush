@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/Hickar/gin-rush/internal/config"
+	"github.com/Hickar/gin-rush/pkg/logging"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,6 +36,11 @@ func setupRouter() *gin.Engine {
 
 func main() {
 	settings := config.New("./conf/config.json")
+
+	err := logging.Setup("./logs/log.log", "%s_%s", "2006-01-02")
+	if err != nil {
+		log.Fatalf("Logging setup error: %s", err)
+	}
 
 	gin.SetMode(settings.Server.Mode)
 	router := setupRouter()
