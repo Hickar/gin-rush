@@ -43,30 +43,20 @@ func Setup(logFilePath string, lFormat string, tFormat string) error {
 
 func Info(message string) {
 	setLogPrefix(INFO)
-	logger.Printf(logFormat, time.Now().Format("02-01-2006"), message)
+	logger.Printf(logFormat, time.Now().Format(timeFormat), message)
 }
 
 func Warning(message string) {
 	setLogPrefix(WARNING)
-	logger.Printf(logFormat, time.Now().Format("02-01-2006"), message)
+	logger.Printf(logFormat, time.Now().Format(timeFormat), message)
 }
 
 func Error(message string) {
 	setLogPrefix(ERROR)
-	logger.Printf(logFormat, time.Now().Format("02-01-2006"), message)
+	logger.Printf(logFormat, time.Now().Format(timeFormat), message)
 }
 
 func setLogPrefix(level Level) {
 	prefix := flags[level]
 	logger.SetPrefix(fmt.Sprintf("[%s]", prefix))
 }
-
-//func formatTimestamp(t time.Time) time.Time {
-//	//test := time.Now().
-//	//fmt.Printf(test)
-//	//formattedTime, err := time.Parse(timeFormat, t.String())
-//	//if err != nil {
-//	//	log.Fatalf("Time formatting in logging error: %s", err)
-//	//}
-//	//return formattedTime
-//}
