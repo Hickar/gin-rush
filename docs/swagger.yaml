@@ -1,0 +1,41 @@
+basePath: /api
+definitions:
+  api.UserDummy:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: hickar@icloud.com
+    name: Hickar
+    url: https://hickar.space
+  description: Minimal API written on gin framework
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Gin-Rush API
+  version: "1.0"
+paths:
+  /user/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get user by id
+      operationId: get-string-by-int
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.UserDummy'
+      summary: Get user
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

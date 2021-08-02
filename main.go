@@ -5,11 +5,34 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/Hickar/gin-rush/docs"
+	"github.com/Hickar/gin-rush/internal/api"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/rollbarinit"
 	"github.com/Hickar/gin-rush/pkg/logging"
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
+
+// @title Gin-Rush API
+// @version 1.0
+// @description Minimal API written on gin framework
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name Hickar
+// @contact.url https://hickar.space
+// @contact.email hickar@icloud.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /api
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 
 func setupRouter() *gin.Engine {
 	router := gin.New()
@@ -21,16 +44,18 @@ func setupRouter() *gin.Engine {
 		c.String(http.StatusOK, "")
 	})
 
-	api := router.Group("/api")
+	user := router.Group("/api")
 	{
-		api.GET("user/:id", nil)
-		api.POST("user", nil)
-		api.PATCH("user", nil)
-		api.DELETE("user/:id", nil)
+		user.GET("user/:id", api.GetUser)
+		user.POST("user", nil)
+		user.PATCH("user", nil)
+		user.DELETE("user/:id", nil)
 
-		api.POST("/authorize/email/challenge/:code", nil)
-		api.POST("/authorize", nil)
+		user.POST("/authorize/email/challenge/:code", nil)
+		user.POST("/authorize", nil)
 	}
+
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	return router
 }
