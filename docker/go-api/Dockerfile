@@ -5,10 +5,7 @@ FROM golang:${GO_VERSION} AS build
 WORKDIR /app
 COPY . .
 RUN go mod download
-RUN go build -o server \
-    && go test -v \
-    && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1 \
-    && golangci-lint run -v -c ./.golangci.yaml ./...
+RUN go build -o server
 
 
 FROM gcr.io/distroless/base-debian10
