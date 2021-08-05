@@ -9,29 +9,22 @@ on:
   pull_request:
 jobs:
   build:
-    name: Local environment run
+    name: Docker environment run
     strategy:
       matrix:
         go-version: [ 1.16.6 ]
         platform: [ ubuntu-latest, macos-latest, windows-latest ]
     runs-on: ${{ matrix.platform }}
+    env:
+      ROLLBAR_TOKEN: ${{ secrets.ROLLBAR_TOKEN }}
+      ROLLBAR_ENV_MODE: production
+      DB_ROOT_PASS: ${{ secrets.DB_ROOT_PASS }}
+      DB_HOST: db
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASS: ${{ secrets.DB_PASSWORD }}
+      DB_DATABASE: gin-rush
     steps:
-      - name: Install Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '^1.16.6'
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install dependencies
-        run: go mod download
-      - name: Run tests
-        run: go test ./...
-      - name: Run linters
-        uses: golangci/golangci-lint-action@v2.5.2
-        with:
-          args: -c ./.golangci.yaml ./...
-      - name: Build
-        env:
-          ROLLBAR_TOKEN: ${{ secrets.ROLLBAR_TOKEN }}
-          ROLLBAR_ENV_MODE: production
-        run: go build
+      - name: Run Docker-Compose
+        run: docker-compsose up -d

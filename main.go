@@ -8,6 +8,7 @@ import (
 	_ "github.com/Hickar/gin-rush/docs"
 	"github.com/Hickar/gin-rush/internal/api"
 	"github.com/Hickar/gin-rush/internal/config"
+	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbarinit"
 	"github.com/Hickar/gin-rush/pkg/logging"
 	"github.com/gin-gonic/gin"
@@ -68,7 +69,11 @@ func main() {
 	}
 
 	if err := logging.Setup("./logs/log.log", "%s_%s", "2006-01-02"); err != nil {
-		log.Fatalf("Logging setup error: %s", err)
+		log.Fatalf("logging setup error: %s", err)
+	}
+
+	if err := models.Setup(); err != nil {
+		log.Fatalf("db setup error: %s", err)
 	}
 
 	gin.SetMode(settings.Server.Mode)

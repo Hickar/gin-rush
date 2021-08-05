@@ -5,17 +5,45 @@ services:
     build:
       context: ./
       dockerfile: ./docker/go-api/Dockerfile
-    image: go-api:latest
+    image: rush-api:latest
     container_name: gin-rush-go
-    env_file:
-      - ./.env
+    environment:
+      - ROLLBAR_TOKEN=${ROLLBAR_TOKEN}
+      - ROLLBAR_ENV_MODE=${ROLLBAR_ENV_MODE}
+      - DB_HOST=gin-rush-mysql
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
     volumes:
-    - ./logs:/logs
+      - ./logs:/logs
     ports:
-      - 8080:8080
-#    restart: unless-stopped
+      - "8080:8080"
+    restart: unless-stopped
     networks:
       - internal
+  db:
+    build:
+      context: ./docker/mysql
+      dockerfile: Dockerfile
+    image: rush-db:latest
+    container_name: gin-rush-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASS}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    platform: linux/x86_64
+    networks:
+      - internal
+
+volumes:
+  mysql-data:
 
 networks:
   internal:

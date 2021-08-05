@@ -25,10 +25,6 @@ const (
 func Setup(logFilePath string, lFormat string, tFormat string) error {
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 	if err != nil {
-		//logFile, err = os.Create(logFilePath)
-		//if err != nil {
-		//	return err
-		//}
 		return err
 	}
 

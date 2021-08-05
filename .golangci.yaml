@@ -286,7 +286,7 @@ linters:
     - unused
     - varcheck
     - megacheck
-    - govet
+#    - govet
 #  enable-all: true
   disable:
     - maligned
@@ -294,7 +294,8 @@ linters:
     - scopelint
     - noctx
     - errcheck
-#    - goanalysis-metalinter
+    - govet
+#    - goanalysis_metalinter
   presets:
     - bugs
     - unused
