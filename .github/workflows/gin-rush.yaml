@@ -35,8 +35,10 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
       - name: Login to Docker
-        run: docker login -u ${{ env.DOCKER_USER }} -p ${{ env.DOCKER_PASSWORD }}
+        run: docker login -u "${{ env.DOCKER_USERNAME }}" -p "${{ env.DOCKER_PASSWORD }}"
       - name: Build and push API
         run: |
           docker build ./docker/go-api/ -t ${{ env.DOCKER_USERNAME }}/gin-rush-go:latest
