@@ -41,7 +41,7 @@ jobs:
         run: docker login -u "${{ env.DOCKER_USERNAME }}" -p "${{ env.DOCKER_PASSWORD }}"
       - name: Build and push API
         run: |
-          docker build ./docker/go-api/ -t ${{ env.DOCKER_USERNAME }}/gin-rush-go:latest
+          docker build -f ./docker/go-api/Dockerfile -t ${{ env.DOCKER_USERNAME }}/gin-rush-go:latest --target build .
           docker push ${{ env.DOCKER_USERNAME }}/gin-rush-go:latest
       - name: Build and push DB
         run: |
