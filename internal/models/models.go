@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var db *gorm.DB
+var DB *gorm.DB
 
 func Setup() error {
 	dbHost := os.Getenv("DB_HOST")
@@ -23,18 +23,22 @@ func Setup() error {
 	}
 
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", dbUser, dbPassword, dbHost, dbName)
-	db, err = gorm.Open(mysql.Open(dsn))
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbName)
+	DB, err = gorm.Open(mysql.Open(dsn))
 
 	if err != nil {
 		log.Fatalf("DB Setup: %s", err)
 	}
 
+	if err := makeMigrations(); err != nil {
+		log.Fatalf("Can't make migrations: %s", err)
+	}
+
 	return nil
 }
 
-func MakeMigrations() error {
-	err := db.AutoMigrate(&User{})
+func makeMigrations() error {
+	err := DB.AutoMigrate(&User{})
 	if err != nil {
 		return err
 	}

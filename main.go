@@ -10,8 +10,11 @@ import (
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbarinit"
+	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/logging"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
@@ -41,14 +44,20 @@ func setupRouter() *gin.Engine {
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
 
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("notblank", security.NotBlank)
+		v.RegisterValidation("validemail", security.ValidEmail)
+		v.RegisterValidation("validpassword", security.ValidPassword)
+	}
+
 	router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "")
 	})
 
 	user := router.Group("/api")
 	{
-		user.GET("user/:id", api.GetUser)
-		user.POST("user", nil)
+		user.GET("user/:id", nil)
+		user.POST("user", api.CreateUser)
 		user.PATCH("user", nil)
 		user.DELETE("user/:id", nil)
 
