@@ -4,10 +4,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Hickar/gin-rush/internal/routes"
 )
 
 func TestServer(t *testing.T) {
-	router := setupRouter()
+	router := routes.Setup()
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest("GET", "/", nil)
