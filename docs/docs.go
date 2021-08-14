@@ -33,34 +33,83 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/user/{id}": {
-            "get": {
-                "description": "Get user by id",
+        "/user/": {
+            "post": {
+                "description": "Create new user with credentials provided in request. Response contains user JWT.",
                 "consumes": [
                     "application/json"
                 ],
-                "summary": "Get user",
+                "summary": "Create new user",
                 "operationId": "get-string-by-int",
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                "parameters": [
+                    {
+                        "description": "JSON with user credentials",
+                        "name": "new_user",
+                        "in": "body",
+                        "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.UserDummy"
+                            "$ref": "#/definitions/api.CreateUserInput"
                         }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.AuthResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "409": {
+                        "description": ""
+                    },
+                    "422": {
+                        "description": ""
                     }
                 }
             }
         }
     },
     "definitions": {
-        "api.UserDummy": {
+        "api.AuthResponse": {
             "type": "object",
             "properties": {
-                "id": {
-                    "type": "integer"
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "api.CreateUserInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "name",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 128
                 },
                 "name": {
-                    "type": "string"
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 6
                 }
             }
         }

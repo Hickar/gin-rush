@@ -9,20 +9,26 @@ import (
 )
 
 type CreateUserInput struct {
-	Name     string `json:"name" binding:"required,max=128,notblank"`
-	Email    string `json:"email" binding:"required,validemail"`
-	Password string `json:"password" binding:"required,validpassword"`
+	Name     string `json:"name" binding:"required,max=128,notblank" maxLength:"128"`
+	Email    string `json:"email" binding:"required,validemail" maxLength:"128"`
+	Password string `json:"password" binding:"required,validpassword" minLength:"6" maxLength:"64"`
+}
+
+type AuthResponse struct {
+	Token string `json:"token"`
 }
 
 // CreateUser godoc
 // @Summary Create new user
-// @Description Create new user with credentials provided in request
+// @Description Create new user with credentials provided in request. Response contains user JWT.
 // @ID get-string-by-int
 // @Accept json
 // @Produces json
-// @Success 201 {string} JWT "asd987sd6_sdf7864pamz..."
-// @Failure 409, 422
-// @Router /user/ [Post]
+// @Param new_user body CreateUserInput true "JSON with user credentials"
+// @Success 201 {object} AuthResponse{token=string}
+// @Failure 409
+// @Failure 422
+// @Router /user/ [post]
 func CreateUser(c *gin.Context) {
 	var input CreateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {

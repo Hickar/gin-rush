@@ -1,11 +1,26 @@
 basePath: /api
 definitions:
-  api.UserDummy:
+  api.AuthResponse:
     properties:
-      id:
-        type: integer
-      name:
+      token:
         type: string
+    type: object
+  api.CreateUserInput:
+    properties:
+      email:
+        maxLength: 128
+        type: string
+      name:
+        maxLength: 128
+        type: string
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
     type: object
 host: localhost:8080
 info:
@@ -21,18 +36,35 @@ info:
   title: Gin-Rush API
   version: "1.0"
 paths:
-  /user/{id}:
-    get:
+  /user/:
+    post:
       consumes:
       - application/json
-      description: Get user by id
+      description: Create new user with credentials provided in request. Response
+        contains user JWT.
       operationId: get-string-by-int
+      parameters:
+      - description: JSON with user credentials
+        in: body
+        name: new_user
+        required: true
+        schema:
+          $ref: '#/definitions/api.CreateUserInput'
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
-            $ref: '#/definitions/api.UserDummy'
-      summary: Get user
+            allOf:
+            - $ref: '#/definitions/api.AuthResponse'
+            - properties:
+                token:
+                  type: string
+              type: object
+        "409":
+          description: ""
+        "422":
+          description: ""
+      summary: Create new user
 securityDefinitions:
   ApiKeyAuth:
     in: header
