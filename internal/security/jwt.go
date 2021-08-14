@@ -1,6 +1,7 @@
 package security
 
 import (
+	"errors"
 	"os"
 	"time"
 
@@ -31,4 +32,22 @@ func GenerateJWT(userID int) (string, error) {
 	}
 
 	return ss, nil
+}
+
+func ParseJWT(tokenString string) (*Claims, error) {
+	signingKey := []byte(os.Getenv("JWT_SECRET"))
+
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(signingKey), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(*Claims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, errors.New("invalid JWT token")
 }

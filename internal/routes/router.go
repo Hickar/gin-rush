@@ -36,7 +36,7 @@ func Setup() *gin.Engine {
 		user.DELETE("user/:id", nil)
 
 		user.POST("/authorize/email/challenge/:code", nil)
-		user.POST("/authorize", nil)
+		user.POST("/authorize", api.AuthorizeUser)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

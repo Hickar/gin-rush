@@ -14,6 +14,11 @@ type CreateUserInput struct {
 	Password string `json:"password" binding:"required,validpassword" minLength:"6" maxLength:"64"`
 }
 
+type AuthUserInput struct {
+	Email    string `json:"email" binding:"required,validemail" maxLength:"128"`
+	Password string `json:"password" binding:"required,validpassword" minLength:"6" maxLength:"64"`
+}
+
 type AuthResponse struct {
 	Token string `json:"token"`
 }
@@ -36,19 +41,24 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	userExists, _ := models.UserExistsByEmail(input.Email)
-	if userExists {
+	if exists, _ := models.UserExistsByEmail(input.Email); exists {
 		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
 
-	user, err := models.CreateUser(map[string]interface{}{"name": input.Name, "email": input.Email})
+	salt, _ := security.RandomBytes(16)
+	hashedPassword, err := security.HashPassword(input.Password, salt)
 	if err != nil {
 		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
 
-	_, err = security.HashPassword(input.Password)
+	user, err := models.CreateUser(map[string]interface{}{
+		"name":     input.Name,
+		"email":    input.Email,
+		"password": hashedPassword,
+		"salt":     salt,
+	})
 	if err != nil {
 		c.AbortWithStatus(http.StatusConflict)
 		return
@@ -64,4 +74,47 @@ func CreateUser(c *gin.Context) {
 		http.StatusCreated,
 		gin.H{"jwt": jwtStr},
 	)
+}
+
+// AuthorizeUser godoc
+// @Summary Authorize user with username/password
+// @Description Method for authorizing user with credentials, returning signed jwt in response
+// @ID get-string-by-id
+// @Accept json
+// @Produces json
+// @Param login_user body AuthUserInput true "JSON with credentials"
+// @Success 200 {object} AuthResponse{token=string}
+// @Failure 404
+// @Failure 422
+// @Router /authorize/ [post]
+func AuthorizeUser(c *gin.Context) {
+	var input AuthUserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	if exists, err := models.UserExistsByEmail(input.Email); !exists || err != nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	user, err := models.GetUserByEmail(input.Email)
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	if valid := security.VerifyPassword(input.Password, user.Password, user.Salt); valid {
+		jwtStr, err := security.GenerateJWT(int(user.ID))
+		if err != nil {
+			c.AbortWithStatus(http.StatusConflict)
+			return
+		}
+
+		c.JSON(
+			http.StatusOK,
+			gin.H{"jwt": jwtStr},
+		)
+	}
 }

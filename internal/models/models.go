@@ -23,7 +23,7 @@ func Setup() error {
 	}
 
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?parseTime=true", dbUser, dbPassword, dbHost, dbName)
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true", dbUser, dbPassword, dbHost, dbName)
 	DB, err = gorm.Open(mysql.Open(dsn))
 
 	if err != nil {
@@ -38,7 +38,7 @@ func Setup() error {
 }
 
 func makeMigrations() error {
-	err := DB.AutoMigrate(&User{})
+	err := DB.Set("gorm:table_options", "CHARSET=utf8mb4").AutoMigrate(&User{})
 	if err != nil {
 		return err
 	}

@@ -40,13 +40,8 @@ func RandomBytes(count int) ([]byte, error) {
 	return salt, err
 }
 
-func HashPassword(in string) ([]byte, error) {
+func HashPassword(in string, salt []byte) ([]byte, error) {
 	peppered, _ := hmacSha256([]byte(in), []byte(os.Getenv("HMAC_KEY")))
-
-	salt, err := RandomBytes(16)
-	if err != nil {
-		return nil, err
-	}
 
 	cur, err := encScrypt(peppered, salt)
 	if err != nil {
@@ -56,7 +51,7 @@ func HashPassword(in string) ([]byte, error) {
 	return cur, err
 }
 
-func Authenticate(plain string, hash []byte) bool {
-	h, _ := HashPassword(plain)
-	return subtle.ConstantTimeCompare(h, hash) == 1
+func VerifyPassword(plain string, hashed, salt []byte) bool {
+	h, _ := HashPassword(plain, salt)
+	return subtle.ConstantTimeCompare(h, hashed) == 1
 }
