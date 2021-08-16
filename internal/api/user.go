@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Hickar/gin-rush/internal/models"
@@ -177,4 +178,49 @@ func UpdateUser(c *gin.Context) {
 
 	c.AbortWithStatus(http.StatusOK)
 	return
+}
+
+// GetUser godoc
+// @Summary Get user
+// @Description Get user by id
+// @Accept json
+// @Produces json
+// @Param user path int true "User ID"
+// @Success 200 {object} UpdateUserInput{name=string,bio=string,avatar=string,birth_date=string}
+// @Failure 401
+// @Failure 403
+// @Failure 404
+// @Failure 422
+// @Router /user/{id} [get]
+// @Security ApiKeyAuth
+func GetUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
+	token, err := security.ParseJWT(rawToken)
+
+	user, err := models.GetUserByID(uint(userID))
+	if err != nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	if uint(userID) != token.UserID {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	bio, _ := user.Bio.Value()
+	avatar, _ := user.Avatar.Value()
+	birthDate, _ := user.BirthDate.Value()
+	c.JSON(http.StatusOK, gin.H{
+		"name":       user.Name,
+		"bio":        bio,
+		"avatar":     avatar,
+		"birth_date": birthDate,
+	})
 }

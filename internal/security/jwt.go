@@ -1,7 +1,6 @@
 package security
 
 import (
-	"encoding/base64"
 	"errors"
 	"os"
 	"time"
@@ -15,8 +14,7 @@ type Claims struct {
 }
 
 func GenerateJWT(userID uint) (string, error) {
-	//signingKey := []byte(os.Getenv("JWT_SECRET"))
-	signingKey, _ := base64.URLEncoding.DecodeString(os.Getenv("JWT_SECRET"))
+	signingKey := []byte(os.Getenv("JWT_SECRET"))
 
 	claims := &Claims{
 		UserID:         userID,
@@ -37,8 +35,7 @@ func GenerateJWT(userID uint) (string, error) {
 }
 
 func ParseJWT(tokenString string) (*Claims, error) {
-	signingKey, _ := base64.URLEncoding.DecodeString(os.Getenv("JWT_SECRET"))
-	//signingKey := []byte(os.Getenv("JWT_SECRET"))
+	signingKey := []byte(os.Getenv("JWT_SECRET"))
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return signingKey, nil
