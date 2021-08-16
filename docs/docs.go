@@ -33,14 +33,59 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/user/": {
+        "/authorize": {
+            "post": {
+                "description": "Method for authorizing user with credentials, returning signed jwt in response",
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "Authorize user with username/password",
+                "parameters": [
+                    {
+                        "description": "JSON with credentials",
+                        "name": "login_user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.AuthUserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.AuthResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "422": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/user": {
             "post": {
                 "description": "Create new user with credentials provided in request. Response contains user JWT.",
                 "consumes": [
                     "application/json"
                 ],
                 "summary": "Create new user",
-                "operationId": "get-string-by-int",
                 "parameters": [
                     {
                         "description": "JSON with user credentials",
@@ -78,6 +123,46 @@ var doc = `{
                         "description": ""
                     }
                 }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Method for updating user info: name, bio, avatar and birth date",
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "Update user info",
+                "parameters": [
+                    {
+                        "description": "JSON with user info",
+                        "name": "update_user",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/api.UpdateUserInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    },
+                    "401": {
+                        "description": ""
+                    },
+                    "403": {
+                        "description": ""
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "422": {
+                        "description": ""
+                    }
+                }
             }
         }
     },
@@ -87,6 +172,24 @@ var doc = `{
             "properties": {
                 "token": {
                     "type": "string"
+                }
+            }
+        },
+        "api.AuthUserInput": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 128
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "minLength": 6
                 }
             }
         },
@@ -110,6 +213,28 @@ var doc = `{
                     "type": "string",
                     "maxLength": 64,
                     "minLength": 6
+                }
+            }
+        },
+        "api.UpdateUserInput": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string",
+                    "maxLength": 512
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 128
                 }
             }
         }

@@ -5,6 +5,19 @@ definitions:
       token:
         type: string
     type: object
+  api.AuthUserInput:
+    properties:
+      email:
+        maxLength: 128
+        type: string
+      password:
+        maxLength: 64
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
   api.CreateUserInput:
     properties:
       email:
@@ -22,6 +35,21 @@ definitions:
     - name
     - password
     type: object
+  api.UpdateUserInput:
+    properties:
+      avatar:
+        type: string
+      bio:
+        maxLength: 512
+        type: string
+      birth_date:
+        type: string
+      name:
+        maxLength: 128
+        type: string
+    required:
+    - name
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -36,13 +64,65 @@ info:
   title: Gin-Rush API
   version: "1.0"
 paths:
-  /user/:
+  /authorize:
+    post:
+      consumes:
+      - application/json
+      description: Method for authorizing user with credentials, returning signed
+        jwt in response
+      parameters:
+      - description: JSON with credentials
+        in: body
+        name: login_user
+        required: true
+        schema:
+          $ref: '#/definitions/api.AuthUserInput'
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.AuthResponse'
+            - properties:
+                token:
+                  type: string
+              type: object
+        "404":
+          description: ""
+        "422":
+          description: ""
+      summary: Authorize user with username/password
+  /user:
+    patch:
+      consumes:
+      - application/json
+      description: 'Method for updating user info: name, bio, avatar and birth date'
+      parameters:
+      - description: JSON with user info
+        in: body
+        name: update_user
+        required: true
+        schema:
+          $ref: '#/definitions/api.UpdateUserInput'
+      responses:
+        "204":
+          description: ""
+        "401":
+          description: ""
+        "403":
+          description: ""
+        "404":
+          description: ""
+        "422":
+          description: ""
+      security:
+      - ApiKeyAuth: []
+      summary: Update user info
     post:
       consumes:
       - application/json
       description: Create new user with credentials provided in request. Response
         contains user JWT.
-      operationId: get-string-by-int
       parameters:
       - description: JSON with user credentials
         in: body

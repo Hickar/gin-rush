@@ -34,14 +34,13 @@ type AuthResponse struct {
 // CreateUser godoc
 // @Summary Create new user
 // @Description Create new user with credentials provided in request. Response contains user JWT.
-// @ID get-string-by-int
 // @Accept json
 // @Produces json
 // @Param new_user body CreateUserInput true "JSON with user credentials"
 // @Success 201 {object} AuthResponse{token=string}
 // @Failure 409
 // @Failure 422
-// @Router /user/ [post]
+// @Router /user [post]
 func CreateUser(c *gin.Context) {
 	var input CreateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -87,14 +86,13 @@ func CreateUser(c *gin.Context) {
 // AuthorizeUser godoc
 // @Summary Authorize user with username/password
 // @Description Method for authorizing user with credentials, returning signed jwt in response
-// @ID get-string-by-id
 // @Accept json
 // @Produces json
 // @Param login_user body AuthUserInput true "JSON with credentials"
 // @Success 200 {object} AuthResponse{token=string}
 // @Failure 404
 // @Failure 422
-// @Router /authorize/ [post]
+// @Router /authorize [post]
 func AuthorizeUser(c *gin.Context) {
 	var input AuthUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -130,14 +128,15 @@ func AuthorizeUser(c *gin.Context) {
 // UpdateUser godoc
 // @Summary Update user info
 // @Description Method for updating user info: name, bio, avatar and birth date
-// @ID get-string-by-id
 // @Accept json
 // @Produces json
+// @Param update_user body UpdateUserInput true "JSON with user info"
 // @Success 204
 // @Failure 401
 // @Failure 403
 // @Failure 404
 // @Failure 422
+// @Security ApiKeyAuth
 // @Router /user [patch]
 func UpdateUser(c *gin.Context) {
 	var input UpdateUserInput
