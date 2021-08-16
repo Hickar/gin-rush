@@ -69,3 +69,7 @@ func UpdateUser(user User, data map[string]interface{}) error {
 
 	return err
 }
+
+func DeleteUser(user User) error {
+	return DB.Delete(&user).Error
+}

@@ -147,7 +147,7 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
-	token, err := security.ParseJWT(rawToken)
+	token, _ := security.ParseJWT(rawToken)
 
 	user, err := models.GetUserByID(token.UserID)
 	if err != nil {
@@ -177,7 +177,6 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	c.AbortWithStatus(http.StatusOK)
-	return
 }
 
 // GetUser godoc
@@ -185,7 +184,7 @@ func UpdateUser(c *gin.Context) {
 // @Description Get user by id
 // @Accept json
 // @Produces json
-// @Param user path int true "User ID"
+// @Param user_id path int true "User ID"
 // @Success 200 {object} UpdateUserInput{name=string,bio=string,avatar=string,birth_date=string}
 // @Failure 401
 // @Failure 403
@@ -201,7 +200,7 @@ func GetUser(c *gin.Context) {
 	}
 
 	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
-	token, err := security.ParseJWT(rawToken)
+	token, _ := security.ParseJWT(rawToken)
 
 	user, err := models.GetUserByID(uint(userID))
 	if err != nil {
@@ -223,4 +222,46 @@ func GetUser(c *gin.Context) {
 		"avatar":     avatar,
 		"birth_date": birthDate,
 	})
+}
+
+// DeleteUser godoc
+// @Summary Delete user
+// @Description Delete user by id
+// @Accept json
+// @Produces json
+// @Param user_id path int true "User ID"
+// @Success 204
+// @Failure 401
+// @Failure 403
+// @Failure 404
+// @Failure 422
+// @Security ApiKeyAuth
+// @Router /user/{id} [delete]
+func DeleteUser(c *gin.Context) {
+	userID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	rawToken := c.GetHeader("AUTHORIZATION")
+	token, _ := security.ParseJWT(security.TrimJWTPrefix(rawToken))
+
+	user, err := models.GetUserByID(uint(userID))
+	if err != nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	if uint(userID) != token.UserID {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	if err := models.DeleteUser(*user); err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
 }

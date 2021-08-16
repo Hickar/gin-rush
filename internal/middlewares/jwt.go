@@ -11,18 +11,20 @@ import (
 func JWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		code := http.StatusOK
-
 		token := c.GetHeader("AUTHORIZATION")
+
 		if token == "" {
 			code = http.StatusUnauthorized
 		} else {
-			_, err := security.ParseJWT(token)
+			_, err := security.ParseJWT(security.TrimJWTPrefix(token))
 
-			switch err.(*jwt.ValidationError).Errors {
-			case jwt.ValidationErrorExpired:
-				code = http.StatusUnauthorized
-			default:
-				code = http.StatusUnauthorized
+			if err != nil {
+				switch err.(*jwt.ValidationError).Errors {
+				case jwt.ValidationErrorExpired:
+					code = http.StatusUnauthorized
+				default:
+					code = http.StatusUnauthorized
+				}
 			}
 		}
 

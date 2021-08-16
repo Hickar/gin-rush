@@ -145,6 +145,68 @@ paths:
         "422":
           description: ""
       summary: Create new user
+  /user/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete user by id
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: ""
+        "401":
+          description: ""
+        "403":
+          description: ""
+        "404":
+          description: ""
+        "422":
+          description: ""
+      security:
+      - ApiKeyAuth: []
+      summary: Delete user
+    get:
+      consumes:
+      - application/json
+      description: Get user by id
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.UpdateUserInput'
+            - properties:
+                avatar:
+                  type: string
+                bio:
+                  type: string
+                birth_date:
+                  type: string
+                name:
+                  type: string
+              type: object
+        "401":
+          description: ""
+        "403":
+          description: ""
+        "404":
+          description: ""
+        "422":
+          description: ""
+      security:
+      - ApiKeyAuth: []
+      summary: Get user
 securityDefinitions:
   ApiKeyAuth:
     in: header

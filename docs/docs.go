@@ -164,6 +164,108 @@ var doc = `{
                     }
                 }
             }
+        },
+        "/user/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get user by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "Get user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.UpdateUserInput"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "avatar": {
+                                            "type": "string"
+                                        },
+                                        "bio": {
+                                            "type": "string"
+                                        },
+                                        "birth_date": {
+                                            "type": "string"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": ""
+                    },
+                    "403": {
+                        "description": ""
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "422": {
+                        "description": ""
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Delete user by id",
+                "consumes": [
+                    "application/json"
+                ],
+                "summary": "Delete user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": ""
+                    },
+                    "401": {
+                        "description": ""
+                    },
+                    "403": {
+                        "description": ""
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "422": {
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "definitions": {
