@@ -3,6 +3,7 @@ package security
 import (
 	"net/mail"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/go-playground/validator/v10"
@@ -50,7 +51,22 @@ var NotBlank validator.Func = func(fl validator.FieldLevel) bool {
 	return test
 }
 
+var ValidBirthDate validator.Func = func(fl validator.FieldLevel) bool {
+	field := fl.Field().Interface().(string)
+	date, err := time.Parse("2006-01-02", field)
+
+	if err != nil {
+		return false
+	}
+
+	now := time.Now()
+	if date.After(now) {
+		return false
+	}
+
+	return true
+}
+
 func IsBlank(str string) bool {
-	//test := strings.Trim(str, " \t\n")
 	return strings.Trim(str, " \t\n") == ""
 }

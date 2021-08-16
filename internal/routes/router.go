@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Hickar/gin-rush/internal/api"
+	"github.com/Hickar/gin-rush/internal/middlewares"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -22,6 +23,7 @@ func Setup() *gin.Engine {
 		v.RegisterValidation("notblank", security.NotBlank)
 		v.RegisterValidation("validemail", security.ValidEmail)
 		v.RegisterValidation("validpassword", security.ValidPassword)
+		v.RegisterValidation("validbirthdate", security.ValidBirthDate)
 	}
 
 	router.GET("/", func(c *gin.Context) {
@@ -32,12 +34,13 @@ func Setup() *gin.Engine {
 	{
 		user.GET("user/:id", nil)
 		user.POST("user", api.CreateUser)
-		user.PATCH("user", nil)
+		user.PATCH("user", api.UpdateUser).Use(middlewares.JWT())
 		user.DELETE("user/:id", nil)
 
 		user.POST("/authorize/email/challenge/:code", nil)
 		user.POST("/authorize", api.AuthorizeUser)
 	}
+
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

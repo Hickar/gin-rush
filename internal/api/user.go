@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
@@ -17,6 +18,13 @@ type CreateUserInput struct {
 type AuthUserInput struct {
 	Email    string `json:"email" binding:"required,validemail" maxLength:"128"`
 	Password string `json:"password" binding:"required,validpassword" minLength:"6" maxLength:"64"`
+}
+
+type UpdateUserInput struct {
+	Name      string `json:"name" binding:"required,max=128,notblank" maxLength:"128"`
+	Bio       string `json:"bio" binding:"max=512" maxLength:"512"`
+	Avatar    string `json:"avatar"`
+	BirthDate string `json:"birth_date" binding:"validbirthdate"`
 }
 
 type AuthResponse struct {
@@ -64,7 +72,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	jwtStr, err := security.GenerateJWT(int(user.ID))
+	jwtStr, err := security.GenerateJWT(user.ID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusConflict)
 		return
@@ -106,7 +114,7 @@ func AuthorizeUser(c *gin.Context) {
 	}
 
 	if valid := security.VerifyPassword(input.Password, user.Password, user.Salt); valid {
-		jwtStr, err := security.GenerateJWT(int(user.ID))
+		jwtStr, err := security.GenerateJWT(user.ID)
 		if err != nil {
 			c.AbortWithStatus(http.StatusConflict)
 			return
@@ -117,4 +125,57 @@ func AuthorizeUser(c *gin.Context) {
 			gin.H{"jwt": jwtStr},
 		)
 	}
+}
+
+// UpdateUser godoc
+// @Summary Update user info
+// @Description Method for updating user info: name, bio, avatar and birth date
+// @ID get-string-by-id
+// @Accept json
+// @Produces json
+// @Success 204
+// @Failure 401
+// @Failure 403
+// @Failure 404
+// @Failure 422
+// @Router /user [patch]
+func UpdateUser(c *gin.Context) {
+	var input UpdateUserInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
+	token, err := security.ParseJWT(rawToken)
+
+	user, err := models.GetUserByID(token.UserID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	if token.UserID != user.ID {
+		c.AbortWithStatus(http.StatusForbidden)
+		return
+	}
+
+	formattedTime, err := time.Parse("2006-01-02", input.BirthDate)
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	if err = models.UpdateUser(*user, map[string]interface{}{
+		"name":       input.Name,
+		"bio":        input.Bio,
+		"birth_date": formattedTime,
+		"avatar":     input.Avatar,
+	}); err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	c.AbortWithStatus(http.StatusOK)
+	return
 }

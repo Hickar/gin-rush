@@ -1,6 +1,7 @@
 package security
 
 import (
+	"encoding/base64"
 	"errors"
 	"os"
 	"time"
@@ -9,12 +10,13 @@ import (
 )
 
 type Claims struct {
-	UserID int `json:"userID"`
+	UserID uint `json:"userID"`
 	jwt.StandardClaims
 }
 
-func GenerateJWT(userID int) (string, error) {
-	signingKey := []byte(os.Getenv("JWT_SECRET"))
+func GenerateJWT(userID uint) (string, error) {
+	//signingKey := []byte(os.Getenv("JWT_SECRET"))
+	signingKey, _ := base64.URLEncoding.DecodeString(os.Getenv("JWT_SECRET"))
 
 	claims := &Claims{
 		UserID:         userID,
@@ -35,10 +37,11 @@ func GenerateJWT(userID int) (string, error) {
 }
 
 func ParseJWT(tokenString string) (*Claims, error) {
-	signingKey := []byte(os.Getenv("JWT_SECRET"))
+	signingKey, _ := base64.URLEncoding.DecodeString(os.Getenv("JWT_SECRET"))
+	//signingKey := []byte(os.Getenv("JWT_SECRET"))
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(signingKey), nil
+		return signingKey, nil
 	})
 
 	if err != nil {
@@ -50,4 +53,8 @@ func ParseJWT(tokenString string) (*Claims, error) {
 	}
 
 	return nil, errors.New("invalid JWT token")
+}
+
+func TrimJWTPrefix(header string) string {
+	return header[7:]
 }

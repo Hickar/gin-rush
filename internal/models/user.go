@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -51,9 +52,20 @@ func GetUserByEmail(email string) (*User, error) {
 	return &user, err
 }
 
-func GetUserByID(id int) (*User, error) {
+func GetUserByID(id uint) (*User, error) {
 	var user User
 	err := DB.First(&user, id).Error
 
 	return &user, err
+}
+
+func UpdateUser(user User, data map[string]interface{}) error {
+	err := DB.Model(&user).Updates(&User{
+		Name:      data["name"].(string),
+		Bio:       sql.NullString{String: data["bio"].(string), Valid: true},
+		BirthDate: sql.NullTime{Time: data["birth_date"].(time.Time), Valid: true},
+		Avatar:    sql.NullString{String: data["avatar"].(string), Valid: true},
+	}).Error
+
+	return err
 }
