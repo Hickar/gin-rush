@@ -9,14 +9,15 @@ import (
 
 type User struct {
 	gorm.Model
-	Name      string `gorm:"not null"`
-	Email     string `gorm:"not null;unique"`
-	Password  []byte `sql:"type:varbinary(32);not null"`
-	Salt      []byte `gorm:"type:varbinary(16);not null"`
-	Bio       sql.NullString
-	Avatar    sql.NullString
-	BirthDate sql.NullTime
-	Enabled   bool `gorm:"default:false"`
+	Name             string `gorm:"not null"`
+	Email            string `gorm:"not null;unique"`
+	Password         []byte `sql:"type:varbinary(32);not null"`
+	Salt             []byte `gorm:"type:varbinary(16);not null"`
+	Bio              sql.NullString
+	Avatar           sql.NullString
+	BirthDate        sql.NullTime
+	Enabled          bool `gorm:"default:false"`
+	ConfirmationCode sql.NullInt32
 }
 
 func CreateUser(data map[string]interface{}) (*User, error) {

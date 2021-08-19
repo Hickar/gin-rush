@@ -10,6 +10,7 @@ import (
 	"github.com/Hickar/gin-rush/internal/rollbarinit"
 	"github.com/Hickar/gin-rush/internal/routes"
 	"github.com/Hickar/gin-rush/pkg/logging"
+	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,6 +46,10 @@ func main() {
 
 	if err := models.Setup(); err != nil {
 		log.Fatalf("db setup error: %s", err)
+	}
+
+	if err := mailer.Setup(); err != nil {
+		log.Fatalf("mailer setup error: %s", err)
 	}
 
 	gin.SetMode(settings.Server.Mode)
