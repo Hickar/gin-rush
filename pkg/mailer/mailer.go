@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -47,9 +46,9 @@ func Setup() error {
 	return nil
 }
 
-func SendConfirmationCode(username, email string, code int) error {
-	challengeLink := os.Getenv("API_HOST") + "/authorize/email/challenge/" + strconv.Itoa(code)
-	body := fmt.Sprintf("Hello <b>%s</b>!<br/>In order to verify your account, please proceed to following link: %s", username, challengeLink)
+func SendConfirmationCode(username, email, code string) error {
+	challengeLink := os.Getenv("API_HOST")+"/authorize/email/challenge/"+code
+	body := fmt.Sprintf("Hello <b>%s</b>!<br/>In order to verify your account, please proceed to following link: <a href=\"%s\">%s</a>", username, challengeLink, challengeLink)
 
 	return SendMail(email, "Account verification", body)
 }
@@ -57,8 +56,8 @@ func SendConfirmationCode(username, email string, code int) error {
 func SendMail(to, subject, body string) error {
 	var message gmail.Message
 
-	mime := "MIME-version: 1.0;\nContent-Type: text/plain; charset=\"UTF-8\";\n\n"
-	msg := []byte(to + "\n" + subject + "\n" + mime + body)
+	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
+	msg := []byte("To: "+to+"\n"+"Subject: "+subject + "\n" + mime + body)
 	message.Raw = base64.URLEncoding.EncodeToString(msg)
 
 	_, err := GmailService.Users.Messages.Send("me", &message).Do()

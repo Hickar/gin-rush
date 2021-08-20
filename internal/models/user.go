@@ -2,6 +2,7 @@ package models
 
 import (
 	"database/sql"
+	"log"
 	"time"
 
 	"gorm.io/gorm"
@@ -11,22 +12,25 @@ type User struct {
 	gorm.Model
 	Name             string `gorm:"not null"`
 	Email            string `gorm:"not null;unique"`
-	Password         []byte `sql:"type:varbinary(32);not null"`
+	Password         []byte `gorm:"type:varbinary(32);not null"`
 	Salt             []byte `gorm:"type:varbinary(16);not null"`
 	Bio              sql.NullString
 	Avatar           sql.NullString
 	BirthDate        sql.NullTime
-	Enabled          bool `gorm:"default:false"`
-	ConfirmationCode sql.NullInt32
+	Enabled          bool   `gorm:"default:false"`
+	ConfirmationCode string `gorm:"type:varchar(255);not null;unique"`
 }
 
 func CreateUser(data map[string]interface{}) (*User, error) {
 	user := &User{
-		Name:     data["name"].(string),
-		Email:    data["email"].(string),
-		Password: data["password"].([]byte),
-		Salt:     data["salt"].([]byte),
+		Name:             data["name"].(string),
+		Email:            data["email"].(string),
+		Password:         data["password"].([]byte),
+		Salt:             data["salt"].([]byte),
+		ConfirmationCode: data["confirmation_code"].(string),
 	}
+
+	log.Printf("len(code): %d\n", len(data["confirmation_code"].(string)))
 
 	if err := DB.Create(&user).Error; err != nil {
 		return nil, err

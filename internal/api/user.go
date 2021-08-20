@@ -7,6 +7,8 @@ import (
 
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
+	"github.com/Hickar/gin-rush/pkg/mailer"
+	"github.com/Hickar/gin-rush/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -65,6 +67,7 @@ func CreateUser(c *gin.Context) {
 		"name":     input.Name,
 		"email":    input.Email,
 		"password": hashedPassword,
+		"confirmation_code": utils.RandomString(30),
 		"salt":     salt,
 	})
 	if err != nil {
@@ -75,6 +78,11 @@ func CreateUser(c *gin.Context) {
 	jwtStr, err := security.GenerateJWT(user.ID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusConflict)
+		return
+	}
+
+	if err := mailer.SendConfirmationCode(user.Name, user.Email, user.ConfirmationCode); err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
 		return
 	}
 
