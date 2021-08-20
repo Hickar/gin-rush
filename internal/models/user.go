@@ -64,12 +64,27 @@ func GetUserByID(id uint) (*User, error) {
 	return &user, err
 }
 
+func GetUserByConfirmationCode(code string) (*User, error)  {
+	var user User
+	err := DB.Where("confirmation_code = ?", code).First(&user).Error
+
+	return &user, err
+}
+
 func UpdateUser(user User, data map[string]interface{}) error {
 	err := DB.Model(&user).Updates(&User{
 		Name:      data["name"].(string),
 		Bio:       sql.NullString{String: data["bio"].(string), Valid: true},
 		BirthDate: sql.NullTime{Time: data["birth_date"].(time.Time), Valid: true},
 		Avatar:    sql.NullString{String: data["avatar"].(string), Valid: true},
+	}).Error
+
+	return err
+}
+
+func EnableUser(user User) error {
+	err := DB.Model(&user).Updates(&User{
+		Enabled: true,
 	}).Error
 
 	return err

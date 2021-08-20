@@ -92,6 +92,30 @@ paths:
         "422":
           description: ""
       summary: Authorize user with username/password
+  /authorize/email/challenge/{code}:
+    get:
+      description: Method for enabling user via verification message sent by email
+      parameters:
+      - description: Confirmation code
+        in: path
+        name: confirmation_code
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/api.AuthResponse'
+            - properties:
+                token:
+                  type: string
+              type: object
+        "404":
+          description: ""
+        "422":
+          description: ""
+      summary: Enable user
   /user:
     patch:
       consumes:

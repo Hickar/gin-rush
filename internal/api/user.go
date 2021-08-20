@@ -273,3 +273,41 @@ func DeleteUser(c *gin.Context) {
 
 	c.AbortWithStatus(http.StatusNoContent)
 }
+
+// EnableUser godoc
+// @Summary Enable user
+// @Description Method for enabling user via verification message sent by email
+// @Produces json
+// @Param confirmation_code path int true "Confirmation code"
+// @Success 200 {object} AuthResponse{token=string}
+// @Failure 404
+// @Failure 422
+// @Router /authorize/email/challenge/{code} [get]
+func EnableUser(c *gin.Context) {
+	code := c.Param("code")
+
+	if len(code) != 30 {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	user, err := models.GetUserByConfirmationCode(code)
+	if err != nil {
+		c.AbortWithStatus(http.StatusNotFound)
+		return
+	}
+
+	if !user.Enabled {
+		models.EnableUser(*user)
+	}
+
+	token, err := security.GenerateJWT(user.ID)
+	if err != nil {
+		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+	})
+}

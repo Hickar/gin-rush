@@ -79,6 +79,47 @@ var doc = `{
                 }
             }
         },
+        "/authorize/email/challenge/{code}": {
+            "get": {
+                "description": "Method for enabling user via verification message sent by email",
+                "summary": "Enable user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Confirmation code",
+                        "name": "confirmation_code",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/api.AuthResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "token": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": ""
+                    },
+                    "422": {
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/user": {
             "post": {
                 "description": "Create new user with credentials provided in request. Response contains user JWT.",

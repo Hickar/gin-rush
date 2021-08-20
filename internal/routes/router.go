@@ -34,7 +34,7 @@ func Setup() *gin.Engine {
 	{
 		user.POST("user", api.CreateUser)
 		user.POST("/authorize", api.AuthorizeUser)
-		user.POST("/authorize/email/challenge/:code", nil)
+		user.GET("/authorize/email/challenge/:code", api.EnableUser)
 
 		user.GET("user/:id", api.GetUser).Use(middlewares.JWT())
 		user.PATCH("user", api.UpdateUser).Use(middlewares.JWT())
