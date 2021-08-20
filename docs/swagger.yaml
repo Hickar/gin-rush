@@ -100,7 +100,7 @@ paths:
         in: path
         name: confirmation_code
         required: true
-        type: integer
+        type: string
       responses:
         "200":
           description: OK

@@ -278,7 +278,7 @@ func DeleteUser(c *gin.Context) {
 // @Summary Enable user
 // @Description Method for enabling user via verification message sent by email
 // @Produces json
-// @Param confirmation_code path int true "Confirmation code"
+// @Param confirmation_code path string true "Confirmation code"
 // @Success 200 {object} AuthResponse{token=string}
 // @Failure 404
 // @Failure 422

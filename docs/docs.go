@@ -85,7 +85,7 @@ var doc = `{
                 "summary": "Enable user",
                 "parameters": [
                     {
-                        "type": "integer",
+                        "type": "string",
                         "description": "Confirmation code",
                         "name": "confirmation_code",
                         "in": "path",
