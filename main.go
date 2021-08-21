@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/Hickar/gin-rush/docs"
-	"github.com/Hickar/gin-rush/internal/config"
-	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbarinit"
 	"github.com/Hickar/gin-rush/internal/routes"
+	"github.com/Hickar/gin-rush/pkg/config"
+	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/logging"
 	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/gin-gonic/gin"
@@ -44,8 +45,13 @@ func main() {
 		log.Fatalf("logging setup error: %s", err)
 	}
 
-	if err := models.Setup(); err != nil {
-		log.Fatalf("db setup error: %s", err)
+	if _, err := database.Setup(
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_NAME"),
+	); err != nil {
+		log.Fatalf("DB Setup: %s", err)
 	}
 
 	if err := mailer.Setup(); err != nil {

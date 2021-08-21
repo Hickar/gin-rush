@@ -1,12 +1,14 @@
 package api
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/Hickar/gin-rush/internal/models"
+	"github.com/Hickar/gin-rush/internal/repositories"
 	"github.com/Hickar/gin-rush/internal/security"
+	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/Hickar/gin-rush/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -51,7 +53,10 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	if exists, _ := models.UserExistsByEmail(input.Email); exists {
+	db := database.GetDB()
+	repo, _ := repositories.NewUserRepository(db)
+
+	if user, _ := repo.FindBy("email", input.Email); user != nil {
 		c.AbortWithStatus(http.StatusConflict)
 		return
 	}
@@ -63,12 +68,12 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := models.CreateUser(map[string]interface{}{
-		"name":     input.Name,
-		"email":    input.Email,
-		"password": hashedPassword,
-		"confirmation_code": utils.RandomString(30),
-		"salt":     salt,
+	user, err := repo.Create(&repositories.User{
+		Name:             input.Name,
+		Email:            input.Email,
+		Password:         hashedPassword,
+		ConfirmationCode: utils.RandomString(30),
+		Salt:             salt,
 	})
 	if err != nil {
 		c.AbortWithStatus(http.StatusConflict)
@@ -109,14 +114,12 @@ func AuthorizeUser(c *gin.Context) {
 		return
 	}
 
-	if exists, err := models.UserExistsByEmail(input.Email); !exists || err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
+	db := database.GetDB()
+	repo, _ := repositories.NewUserRepository(db)
 
-	user, err := models.GetUserByEmail(input.Email)
+	user, err := repo.FindBy("email", input.Email)
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 
@@ -154,10 +157,13 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
+	db := database.GetDB()
+	repo, _ := repositories.NewUserRepository(db)
+
 	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
 	token, _ := security.ParseJWT(rawToken)
 
-	user, err := models.GetUserByID(token.UserID)
+	user, err := repo.FindByID(token.UserID)
 	if err != nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -174,12 +180,12 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	if err = models.UpdateUser(*user, map[string]interface{}{
-		"name":       input.Name,
-		"bio":        input.Bio,
-		"birth_date": formattedTime,
-		"avatar":     input.Avatar,
-	}); err != nil {
+	user.Name = input.Name
+	user.Bio = sql.NullString{input.Bio, true}
+	user.BirthDate = sql.NullTime{formattedTime, true}
+	user.Avatar = sql.NullString{input.Avatar, true}
+
+	if err = repo.Update(*user); err != nil {
 		c.AbortWithStatus(http.StatusUnprocessableEntity)
 		return
 	}
@@ -207,10 +213,13 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
+	db := database.GetDB()
+	repo, _ := repositories.NewUserRepository(db)
+
 	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
 	token, _ := security.ParseJWT(rawToken)
 
-	user, err := models.GetUserByID(uint(userID))
+	user, err := repo.FindByID(uint(userID))
 	if err != nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -252,10 +261,13 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
+	db := database.GetDB()
+	repo, _ := repositories.NewUserRepository(db)
+
 	rawToken := c.GetHeader("AUTHORIZATION")
 	token, _ := security.ParseJWT(security.TrimJWTPrefix(rawToken))
 
-	user, err := models.GetUserByID(uint(userID))
+	user, err := repo.FindByID(uint(userID))
 	if err != nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
@@ -266,7 +278,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	if err := models.DeleteUser(*user); err != nil {
+	if err := repo.Delete(*user); err != nil {
 		c.AbortWithStatus(http.StatusUnprocessableEntity)
 		return
 	}
@@ -291,14 +303,18 @@ func EnableUser(c *gin.Context) {
 		return
 	}
 
-	user, err := models.GetUserByConfirmationCode(code)
+	db := database.GetDB()
+	repo, _ := repositories.NewUserRepository(db)
+
+	user, err := repo.FindBy("confirmation_code", code)
 	if err != nil {
 		c.AbortWithStatus(http.StatusNotFound)
 		return
 	}
 
 	if !user.Enabled {
-		models.EnableUser(*user)
+		user.Enabled = true
+		repo.Update(*user)
 	}
 
 	token, err := security.GenerateJWT(user.ID)

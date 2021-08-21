@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	App      AppConfig      `json:"app"`
-	Server   ServerConfig   `json:"server"`
+	App    AppConfig    `json:"app"`
+	Server ServerConfig `json:"server"`
 }
 
 type AppConfig struct {
