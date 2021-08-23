@@ -51,7 +51,3 @@ func ParseJWT(tokenString string) (*Claims, error) {
 
 	return nil, errors.New("invalid JWT token")
 }
-
-func TrimJWTPrefix(header string) string {
-	return header[7:]
-}

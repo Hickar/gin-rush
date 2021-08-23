@@ -10,13 +10,16 @@ import (
 
 func JWT() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		code := http.StatusOK
-		token := c.GetHeader("AUTHORIZATION")
+		var claims *security.Claims
+		var err error
 
-		if token == "" {
+		code := http.StatusOK
+		rawToken := trimJWTPrefix(c.GetHeader("AUTHORIZATION"))
+
+		if rawToken == "" {
 			code = http.StatusUnauthorized
 		} else {
-			_, err := security.ParseJWT(security.TrimJWTPrefix(token))
+			claims, err = security.ParseJWT(rawToken)
 
 			if err != nil {
 				switch err.(*jwt.ValidationError).Errors {
@@ -33,6 +36,11 @@ func JWT() gin.HandlerFunc {
 			return
 		}
 
+		c.Set("user_id", claims.UserID)
 		c.Next()
 	}
+}
+
+func trimJWTPrefix(header string) string {
+	return header[7:]
 }

@@ -49,7 +49,7 @@ type AuthResponse struct {
 func CreateUser(c *gin.Context) {
 	var input CreateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -57,14 +57,14 @@ func CreateUser(c *gin.Context) {
 	repo, _ := repositories.NewUserRepository(db)
 
 	if user, _ := repo.FindBy("email", input.Email); user != nil {
-		c.AbortWithStatus(http.StatusConflict)
+		c.Status(http.StatusConflict)
 		return
 	}
 
 	salt, _ := security.RandomBytes(16)
 	hashedPassword, err := security.HashPassword(input.Password, salt)
 	if err != nil {
-		c.AbortWithStatus(http.StatusConflict)
+		c.Status(http.StatusConflict)
 		return
 	}
 
@@ -76,18 +76,18 @@ func CreateUser(c *gin.Context) {
 		Salt:             salt,
 	})
 	if err != nil {
-		c.AbortWithStatus(http.StatusConflict)
+		c.Status(http.StatusConflict)
 		return
 	}
 
 	jwtStr, err := security.GenerateJWT(user.ID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusConflict)
+		c.Status(http.StatusConflict)
 		return
 	}
 
 	if err := mailer.SendConfirmationCode(user.Name, user.Email, user.ConfirmationCode); err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -110,7 +110,7 @@ func CreateUser(c *gin.Context) {
 func AuthorizeUser(c *gin.Context) {
 	var input AuthUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -119,14 +119,14 @@ func AuthorizeUser(c *gin.Context) {
 
 	user, err := repo.FindBy("email", input.Email)
 	if err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
 	if valid := security.VerifyPassword(input.Password, user.Password, user.Salt); valid {
 		jwtStr, err := security.GenerateJWT(user.ID)
 		if err != nil {
-			c.AbortWithStatus(http.StatusConflict)
+			c.Status(http.StatusConflict)
 			return
 		}
 
@@ -153,30 +153,28 @@ func AuthorizeUser(c *gin.Context) {
 func UpdateUser(c *gin.Context) {
 	var input UpdateUserInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
 	repo, _ := repositories.NewUserRepository(db)
+	authUserID, _ := c.MustGet("user_id").(uint)
 
-	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
-	token, _ := security.ParseJWT(rawToken)
-
-	user, err := repo.FindByID(token.UserID)
+	user, err := repo.FindByID(authUserID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
-	if token.UserID != user.ID {
-		c.AbortWithStatus(http.StatusForbidden)
+	if authUserID != user.ID {
+		c.Status(http.StatusForbidden)
 		return
 	}
 
 	formattedTime, err := time.Parse("2006-01-02", input.BirthDate)
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -186,11 +184,11 @@ func UpdateUser(c *gin.Context) {
 	user.Avatar = sql.NullString{input.Avatar, true}
 
 	if err = repo.Update(*user); err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
-	c.AbortWithStatus(http.StatusOK)
+	c.Status(http.StatusOK)
 }
 
 // GetUser godoc
@@ -209,24 +207,22 @@ func UpdateUser(c *gin.Context) {
 func GetUser(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
 	repo, _ := repositories.NewUserRepository(db)
-
-	rawToken := security.TrimJWTPrefix(c.GetHeader("AUTHORIZATION"))
-	token, _ := security.ParseJWT(rawToken)
+	authUserID, _ := c.MustGet("user_id").(uint)
 
 	user, err := repo.FindByID(uint(userID))
 	if err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
-	if uint(userID) != token.UserID {
-		c.AbortWithStatus(http.StatusForbidden)
+	if uint(userID) != authUserID {
+		c.Status(http.StatusForbidden)
 		return
 	}
 
@@ -257,33 +253,31 @@ func GetUser(c *gin.Context) {
 func DeleteUser(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
 	repo, _ := repositories.NewUserRepository(db)
-
-	rawToken := c.GetHeader("AUTHORIZATION")
-	token, _ := security.ParseJWT(security.TrimJWTPrefix(rawToken))
+	authUserID, _ := c.MustGet("user_id").(uint)
 
 	user, err := repo.FindByID(uint(userID))
 	if err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
-	if uint(userID) != token.UserID {
-		c.AbortWithStatus(http.StatusForbidden)
+	if uint(userID) != authUserID {
+		c.Status(http.StatusForbidden)
 		return
 	}
 
 	if err := repo.Delete(*user); err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
-	c.AbortWithStatus(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // EnableUser godoc
@@ -299,7 +293,7 @@ func EnableUser(c *gin.Context) {
 	code := c.Param("code")
 
 	if len(code) != 30 {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -308,7 +302,7 @@ func EnableUser(c *gin.Context) {
 
 	user, err := repo.FindBy("confirmation_code", code)
 	if err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
+		c.Status(http.StatusNotFound)
 		return
 	}
 
@@ -319,7 +313,7 @@ func EnableUser(c *gin.Context) {
 
 	token, err := security.GenerateJWT(user.ID)
 	if err != nil {
-		c.AbortWithStatus(http.StatusUnprocessableEntity)
+		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
