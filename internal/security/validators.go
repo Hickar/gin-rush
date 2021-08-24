@@ -60,11 +60,7 @@ var ValidBirthDate validator.Func = func(fl validator.FieldLevel) bool {
 	}
 
 	now := time.Now()
-	if date.After(now) {
-		return false
-	}
-
-	return true
+	return !date.After(now)
 }
 
 func IsBlank(str string) bool {

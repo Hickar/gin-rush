@@ -10,44 +10,24 @@ import (
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/mailer"
+	"github.com/Hickar/gin-rush/pkg/request"
+	"github.com/Hickar/gin-rush/pkg/response"
 	"github.com/Hickar/gin-rush/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
-
-type CreateUserInput struct {
-	Name     string `json:"name" binding:"required,max=128,notblank" maxLength:"128"`
-	Email    string `json:"email" binding:"required,validemail" maxLength:"128"`
-	Password string `json:"password" binding:"required,validpassword" minLength:"6" maxLength:"64"`
-}
-
-type AuthUserInput struct {
-	Email    string `json:"email" binding:"required,validemail" maxLength:"128"`
-	Password string `json:"password" binding:"required,validpassword" minLength:"6" maxLength:"64"`
-}
-
-type UpdateUserInput struct {
-	Name      string `json:"name" binding:"required,max=128,notblank" maxLength:"128"`
-	Bio       string `json:"bio" binding:"max=512" maxLength:"512"`
-	Avatar    string `json:"avatar"`
-	BirthDate string `json:"birth_date" binding:"validbirthdate"`
-}
-
-type AuthResponse struct {
-	Token string `json:"token"`
-}
 
 // CreateUser godoc
 // @Summary Create new user
 // @Description Create new user with credentials provided in request. Response contains user JWT.
 // @Accept json
 // @Produces json
-// @Param new_user body CreateUserInput true "JSON with user credentials"
-// @Success 201 {object} AuthResponse{token=string}
+// @Param new_user body request.CreateUserRequest true "JSON with user credentials"
+// @Success 201 {object} response.AuthResponse{token=string}
 // @Failure 409
 // @Failure 422
 // @Router /user [post]
 func CreateUser(c *gin.Context) {
-	var input CreateUserInput
+	var input request.CreateUserRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
@@ -80,7 +60,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	jwtStr, err := security.GenerateJWT(user.ID)
+	token, err := security.GenerateJWT(user.ID)
 	if err != nil {
 		c.Status(http.StatusConflict)
 		return
@@ -93,7 +73,7 @@ func CreateUser(c *gin.Context) {
 
 	c.JSON(
 		http.StatusCreated,
-		gin.H{"jwt": jwtStr},
+		response.AuthResponse{Token: token},
 	)
 }
 
@@ -102,13 +82,13 @@ func CreateUser(c *gin.Context) {
 // @Description Method for authorizing user with credentials, returning signed jwt in response
 // @Accept json
 // @Produces json
-// @Param login_user body AuthUserInput true "JSON with credentials"
-// @Success 200 {object} AuthResponse{token=string}
+// @Param login_user body request.AuthUserRequest true "JSON with credentials"
+// @Success 200 {object} response.AuthResponse{token=string}
 // @Failure 404
 // @Failure 422
 // @Router /authorize [post]
 func AuthorizeUser(c *gin.Context) {
-	var input AuthUserInput
+	var input request.AuthUserRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
@@ -124,7 +104,7 @@ func AuthorizeUser(c *gin.Context) {
 	}
 
 	if valid := security.VerifyPassword(input.Password, user.Password, user.Salt); valid {
-		jwtStr, err := security.GenerateJWT(user.ID)
+		token, err := security.GenerateJWT(user.ID)
 		if err != nil {
 			c.Status(http.StatusConflict)
 			return
@@ -132,7 +112,7 @@ func AuthorizeUser(c *gin.Context) {
 
 		c.JSON(
 			http.StatusOK,
-			gin.H{"jwt": jwtStr},
+			response.AuthResponse{Token: token},
 		)
 	}
 }
@@ -142,7 +122,7 @@ func AuthorizeUser(c *gin.Context) {
 // @Description Method for updating user info: name, bio, avatar and birth date
 // @Accept json
 // @Produces json
-// @Param update_user body UpdateUserInput true "JSON with user info"
+// @Param update_user body request.UpdateUserRequest true "JSON with user info"
 // @Success 204
 // @Failure 401
 // @Failure 403
@@ -151,7 +131,7 @@ func AuthorizeUser(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Router /user [patch]
 func UpdateUser(c *gin.Context) {
-	var input UpdateUserInput
+	var input request.UpdateUserRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
@@ -197,7 +177,7 @@ func UpdateUser(c *gin.Context) {
 // @Accept json
 // @Produces json
 // @Param user_id path int true "User ID"
-// @Success 200 {object} UpdateUserInput{name=string,bio=string,avatar=string,birth_date=string}
+// @Success 200 {object} response.UpdateUserResponse{name=string,bio=string,avatar=string,birth_date=string}
 // @Failure 401
 // @Failure 403
 // @Failure 404
@@ -226,14 +206,11 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	bio, _ := user.Bio.Value()
-	avatar, _ := user.Avatar.Value()
-	birthDate, _ := user.BirthDate.Value()
-	c.JSON(http.StatusOK, gin.H{
-		"name":       user.Name,
-		"bio":        bio,
-		"avatar":     avatar,
-		"birth_date": birthDate,
+	c.JSON(http.StatusOK, response.UpdateUserResponse{
+		Name:      user.Name,
+		Bio:       user.Bio.String,
+		Avatar:    user.Avatar.String,
+		BirthDate: user.BirthDate.Time.String(),
 	})
 }
 
@@ -285,7 +262,7 @@ func DeleteUser(c *gin.Context) {
 // @Description Method for enabling user via verification message sent by email
 // @Produces json
 // @Param confirmation_code path string true "Confirmation code"
-// @Success 200 {object} AuthResponse{token=string}
+// @Success 200 {object} response.AuthResponse{token=string}
 // @Failure 404
 // @Failure 422
 // @Router /authorize/email/challenge/{code} [get]
@@ -317,7 +294,8 @@ func EnableUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-	})
+	c.JSON(
+		http.StatusOK,
+		response.AuthResponse{Token: token},
+	)
 }

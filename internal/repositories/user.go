@@ -8,7 +8,7 @@ import (
 )
 
 type UserRepository struct {
-	db *gorm.DB
+	DB *gorm.DB
 }
 
 type User struct {
@@ -37,7 +37,7 @@ func NewUserRepository(db *gorm.DB) (*UserRepository, error) {
 }
 
 func (r *UserRepository) Create(user *User) (*User, error) {
-	if err := r.db.Create(&user).Error; err != nil {
+	if err := r.DB.Create(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -47,7 +47,7 @@ func (r *UserRepository) Create(user *User) (*User, error) {
 func (r *UserRepository) FindBy(field string, values interface{}) (*User, error) {
 	var user User
 
-	if err := r.db.Where(field + " = ?", values).First(&user).Error; err != nil {
+	if err := r.DB.Where(field + " = ?", values).First(&user).Error; err != nil {
 		return nil, err
 	}
 
@@ -56,7 +56,7 @@ func (r *UserRepository) FindBy(field string, values interface{}) (*User, error)
 
 func (r *UserRepository) ExistsByEmail(email string) (bool, error) {
 	var user User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.DB.Where("email = ?", email).First(&user).Error
 
 	if err != nil {
 		return false, err
@@ -65,31 +65,17 @@ func (r *UserRepository) ExistsByEmail(email string) (bool, error) {
 	return true, nil
 }
 
-//func (r *UserRepository) FindByEmail(email string) (*User, error) {
-//	var user User
-//	err := r.db.Where("email = ?", email).First(&user).Error
-//
-//	return &user, err
-//}
-
 func (r *UserRepository) FindByID(id uint) (*User, error) {
 	var user User
-	err := r.db.First(&user, id).Error
+	err := r.DB.First(&user, id).Error
 
 	return &user, err
 }
 
-//func (r *UserRepository) FindByConfirmationCode(code string) (*User, error) {
-//	var user User
-//	err := r.db.Where("confirmation_code = ?", code).First(&user).Error
-//
-//	return &user, err
-//}
-
 func (r *UserRepository) Update(user User) error {
-	return r.db.Save(&user).Error
+	return r.DB.Save(&user).Error
 }
 
 func (r *UserRepository) Delete(user User) error {
-	return r.db.Delete(&user).Error
+	return r.DB.Delete(&user).Error
 }

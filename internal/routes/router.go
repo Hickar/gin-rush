@@ -35,17 +35,14 @@ func Setup() *gin.Engine {
 		user.POST("user", api.CreateUser)
 		user.POST("/authorize", api.AuthorizeUser)
 		user.GET("/authorize/email/challenge/:code", api.EnableUser)
-
-		//user.GET("user/:id", api.GetUser).Use(middlewares.JWT())
-		//user.PATCH("user", api.UpdateUser).Use(middlewares.JWT())
-		//user.DELETE("user/:id", api.DeleteUser).Use(middlewares.JWT())
 	}
 
 	authUser := router.Group("/api", middlewares.JWT())
-	authUser.GET("user/:id", api.GetUser)
-	authUser.PATCH("user", api.UpdateUser)
-	authUser.DELETE("user/:id", api.DeleteUser)
-
+	{
+		authUser.GET("user/:id", api.GetUser)
+		authUser.PATCH("user", api.UpdateUser)
+		authUser.DELETE("user/:id", api.DeleteUser)
+	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

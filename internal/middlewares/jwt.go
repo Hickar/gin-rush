@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/Hickar/gin-rush/internal/security"
@@ -14,16 +15,16 @@ func JWT() gin.HandlerFunc {
 		var err error
 
 		code := http.StatusOK
-		rawToken := trimJWTPrefix(c.GetHeader("AUTHORIZATION"))
+		token := trimJWTPrefix(c.GetHeader("AUTHORIZATION"))
 
-		if rawToken == "" {
+		if token == "" {
 			code = http.StatusUnauthorized
 		} else {
-			claims, err = security.ParseJWT(rawToken)
+			claims, err = security.ParseJWT(token)
 
 			if err != nil {
-				switch err.(*jwt.ValidationError).Errors {
-				case jwt.ValidationErrorExpired:
+				switch {
+				case errors.As(err, &jwt.ValidationError{}):
 					code = http.StatusUnauthorized
 				default:
 					code = http.StatusUnauthorized

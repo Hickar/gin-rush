@@ -47,7 +47,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.AuthUserInput"
+                            "$ref": "#/definitions/request.AuthUserRequest"
                         }
                     }
                 ],
@@ -57,7 +57,7 @@ var doc = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.AuthResponse"
+                                    "$ref": "#/definitions/response.AuthResponse"
                                 },
                                 {
                                     "type": "object",
@@ -98,7 +98,7 @@ var doc = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.AuthResponse"
+                                    "$ref": "#/definitions/response.AuthResponse"
                                 },
                                 {
                                     "type": "object",
@@ -134,7 +134,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.CreateUserInput"
+                            "$ref": "#/definitions/request.CreateUserRequest"
                         }
                     }
                 ],
@@ -144,7 +144,7 @@ var doc = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.AuthResponse"
+                                    "$ref": "#/definitions/response.AuthResponse"
                                 },
                                 {
                                     "type": "object",
@@ -183,7 +183,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api.UpdateUserInput"
+                            "$ref": "#/definitions/request.UpdateUserRequest"
                         }
                     }
                 ],
@@ -233,7 +233,7 @@ var doc = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/api.UpdateUserInput"
+                                    "$ref": "#/definitions/response.UpdateUserResponse"
                                 },
                                 {
                                     "type": "object",
@@ -310,15 +310,7 @@ var doc = `{
         }
     },
     "definitions": {
-        "api.AuthResponse": {
-            "type": "object",
-            "properties": {
-                "token": {
-                    "type": "string"
-                }
-            }
-        },
-        "api.AuthUserInput": {
+        "request.AuthUserRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -336,7 +328,7 @@ var doc = `{
                 }
             }
         },
-        "api.CreateUserInput": {
+        "request.CreateUserRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -359,7 +351,37 @@ var doc = `{
                 }
             }
         },
-        "api.UpdateUserInput": {
+        "request.UpdateUserRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string",
+                    "maxLength": 512
+                },
+                "birth_date": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 128
+                }
+            }
+        },
+        "response.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.UpdateUserResponse": {
             "type": "object",
             "required": [
                 "name"

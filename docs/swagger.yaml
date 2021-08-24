@@ -1,11 +1,6 @@
 basePath: /api
 definitions:
-  api.AuthResponse:
-    properties:
-      token:
-        type: string
-    type: object
-  api.AuthUserInput:
+  request.AuthUserRequest:
     properties:
       email:
         maxLength: 128
@@ -18,7 +13,7 @@ definitions:
     - email
     - password
     type: object
-  api.CreateUserInput:
+  request.CreateUserRequest:
     properties:
       email:
         maxLength: 128
@@ -35,7 +30,27 @@ definitions:
     - name
     - password
     type: object
-  api.UpdateUserInput:
+  request.UpdateUserRequest:
+    properties:
+      avatar:
+        type: string
+      bio:
+        maxLength: 512
+        type: string
+      birth_date:
+        type: string
+      name:
+        maxLength: 128
+        type: string
+    required:
+    - name
+    type: object
+  response.AuthResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  response.UpdateUserResponse:
     properties:
       avatar:
         type: string
@@ -76,13 +91,13 @@ paths:
         name: login_user
         required: true
         schema:
-          $ref: '#/definitions/api.AuthUserInput'
+          $ref: '#/definitions/request.AuthUserRequest'
       responses:
         "200":
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.AuthResponse'
+            - $ref: '#/definitions/response.AuthResponse'
             - properties:
                 token:
                   type: string
@@ -106,7 +121,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.AuthResponse'
+            - $ref: '#/definitions/response.AuthResponse'
             - properties:
                 token:
                   type: string
@@ -127,7 +142,7 @@ paths:
         name: update_user
         required: true
         schema:
-          $ref: '#/definitions/api.UpdateUserInput'
+          $ref: '#/definitions/request.UpdateUserRequest'
       responses:
         "204":
           description: ""
@@ -153,13 +168,13 @@ paths:
         name: new_user
         required: true
         schema:
-          $ref: '#/definitions/api.CreateUserInput'
+          $ref: '#/definitions/request.CreateUserRequest'
       responses:
         "201":
           description: Created
           schema:
             allOf:
-            - $ref: '#/definitions/api.AuthResponse'
+            - $ref: '#/definitions/response.AuthResponse'
             - properties:
                 token:
                   type: string
@@ -209,7 +224,7 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/api.UpdateUserInput'
+            - $ref: '#/definitions/response.UpdateUserResponse'
             - properties:
                 avatar:
                   type: string
