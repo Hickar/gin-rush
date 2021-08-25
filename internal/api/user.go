@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Hickar/gin-rush/internal/repositories"
+	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/mailer"
@@ -28,15 +28,17 @@ import (
 // @Router /user [post]
 func CreateUser(c *gin.Context) {
 	var input request.CreateUserRequest
+	var user models.User
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
-	repo, _ := repositories.NewUserRepository(db)
 
-	if user, _ := repo.FindBy("email", input.Email); user != nil {
+	exists, err := db.Exists(&models.User{}, "email", input.Email)
+	if exists {
 		c.Status(http.StatusConflict)
 		return
 	}
@@ -48,13 +50,13 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := repo.Create(&repositories.User{
-		Name:             input.Name,
-		Email:            input.Email,
-		Password:         hashedPassword,
-		ConfirmationCode: utils.RandomString(30),
-		Salt:             salt,
-	})
+	user.Name = input.Name
+	user.Email = input.Email
+	user.Password = hashedPassword
+	user.ConfirmationCode = utils.RandomString(30)
+	user.Salt = salt
+
+	err = db.Create(&user)
 	if err != nil {
 		c.Status(http.StatusConflict)
 		return
@@ -89,15 +91,16 @@ func CreateUser(c *gin.Context) {
 // @Router /authorize [post]
 func AuthorizeUser(c *gin.Context) {
 	var input request.AuthUserRequest
+	var user models.User
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
-	repo, _ := repositories.NewUserRepository(db)
 
-	user, err := repo.FindBy("email", input.Email)
+	err := db.FindBy(&user, "email", input.Email)
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -132,17 +135,17 @@ func AuthorizeUser(c *gin.Context) {
 // @Router /user [patch]
 func UpdateUser(c *gin.Context) {
 	var input request.UpdateUserRequest
+	var user models.User
+
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
-	repo, _ := repositories.NewUserRepository(db)
 	authUserID, _ := c.MustGet("user_id").(uint)
 
-	user, err := repo.FindByID(authUserID)
-	if err != nil {
+	if err := db.FindByID(&user, authUserID); err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -163,7 +166,7 @@ func UpdateUser(c *gin.Context) {
 	user.BirthDate = sql.NullTime{formattedTime, true}
 	user.Avatar = sql.NullString{input.Avatar, true}
 
-	if err = repo.Update(*user); err != nil {
+	if err = db.Update(&user); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
@@ -185,17 +188,18 @@ func UpdateUser(c *gin.Context) {
 // @Router /user/{id} [get]
 // @Security ApiKeyAuth
 func GetUser(c *gin.Context) {
+	var user models.User
 	userID, err := strconv.Atoi(c.Param("id"))
+
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
-	repo, _ := repositories.NewUserRepository(db)
 	authUserID, _ := c.MustGet("user_id").(uint)
 
-	user, err := repo.FindByID(uint(userID))
+	err = db.FindByID(&user, uint(userID))
 	if err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -228,18 +232,18 @@ func GetUser(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Router /user/{id} [delete]
 func DeleteUser(c *gin.Context) {
+	var user models.User
 	userID, err := strconv.Atoi(c.Param("id"))
+
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
 	db := database.GetDB()
-	repo, _ := repositories.NewUserRepository(db)
 	authUserID, _ := c.MustGet("user_id").(uint)
 
-	user, err := repo.FindByID(uint(userID))
-	if err != nil {
+	if err = db.FindByID(&user, uint(userID)); err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -249,7 +253,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	if err := repo.Delete(*user); err != nil {
+	if err := db.Delete(&user); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
@@ -267,6 +271,7 @@ func DeleteUser(c *gin.Context) {
 // @Failure 422
 // @Router /authorize/email/challenge/{code} [get]
 func EnableUser(c *gin.Context) {
+	var user models.User
 	code := c.Param("code")
 
 	if len(code) != 30 {
@@ -275,17 +280,15 @@ func EnableUser(c *gin.Context) {
 	}
 
 	db := database.GetDB()
-	repo, _ := repositories.NewUserRepository(db)
 
-	user, err := repo.FindBy("confirmation_code", code)
-	if err != nil {
+	if err := db.FindBy(&user, "confirmation_code", code); err != nil {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
 	if !user.Enabled {
 		user.Enabled = true
-		repo.Update(*user)
+		db.Update(&user)
 	}
 
 	token, err := security.GenerateJWT(user.ID)

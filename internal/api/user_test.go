@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/Hickar/gin-rush/internal/repositories"
+	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/mailer"
@@ -24,24 +24,24 @@ func TestCreateUser(t *testing.T) {
 	r.POST("/api/user", CreateUser)
 
 	mailer.Setup()
-	db, mock := database.SetupMockDB()
-	defer database.Close()
+	db, mock := database.NewMockDB()
+	defer db.Close()
 
 	tests := []struct {
 		Name         string
-		BodyData     repositories.User
+		BodyData     models.User
 		ExpectedCode int
 		Msg          string
 	}{
 		{
 			"Create New User",
-			repositories.User{Name: "NewUser", Email: "hickar@icloud.com", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
+			models.User{Name: "NewUser", Email: "hickar@icloud.com", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
 			http.StatusCreated,
 			"Should return 201, this is new not existent user",
 		},
 		{
 			"Create Existing User",
-			repositories.User{Name: "NewUser", Email: "hickar@icloud.com", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
+			models.User{Name: "NewUser", Email: "hickar@icloud.com", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
 			http.StatusCreated,
 			"Should return 409, user with these credentials already exists",
 		},
@@ -57,8 +57,10 @@ func TestCreateUser(t *testing.T) {
 				WillReturnResult(sqlmock.NewResult(1, 1))
 			mock.ExpectCommit()
 
-			repo := &repositories.UserRepository{DB: db}
-			_, _ = repo.Create(&tt.BodyData)
+			err := db.Create(&tt.BodyData)
+			if err != nil {
+				t.Errorf("Error during user creation: %s", err)
+			}
 
 			if err := mock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Some of DB query expectations were not met: %s", err)
@@ -67,7 +69,7 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
-func TestCreateUserValidators(t *testing.T) {
+func TestUserCredentialsValidators(t *testing.T) {
 	r := gin.Default()
 	r.POST("/api/user", CreateUser)
 

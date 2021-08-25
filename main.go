@@ -6,6 +6,7 @@ import (
 	"os"
 
 	_ "github.com/Hickar/gin-rush/docs"
+	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbarinit"
 	"github.com/Hickar/gin-rush/internal/routes"
 	"github.com/Hickar/gin-rush/pkg/config"
@@ -38,20 +39,25 @@ func main() {
 	settings := config.New("./conf/config.json")
 
 	if err := rollbarinit.Setup(); err != nil {
-		log.Fatalf("Rollbar setup error: %s", err)
+		log.Fatalf("rollbar setup error: %s", err)
 	}
 
 	if err := logging.Setup("./logs/log.log", "%s_%s", "2006-01-02"); err != nil {
 		log.Fatalf("logging setup error: %s", err)
 	}
 
-	if _, err := database.Setup(
+	db, err := database.New(
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_NAME"),
-	); err != nil {
-		log.Fatalf("DB Setup: %s", err)
+	)
+	if err != nil {
+		log.Fatalf("database setup: %s", err)
+	}
+
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		log.Fatalf("models migration err: %s", err)
 	}
 
 	if err := mailer.Setup(); err != nil {
@@ -62,6 +68,6 @@ func main() {
 	router := routes.Setup()
 
 	if err := router.Run(fmt.Sprintf(":%d", settings.Server.Port)); err != nil {
-		log.Fatalf("Cannot start GIN server: %s", err)
+		log.Fatalf("cannot start GIN server: %s", err)
 	}
 }
