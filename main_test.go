@@ -6,10 +6,12 @@ import (
 	"testing"
 
 	"github.com/Hickar/gin-rush/internal/routes"
+	"github.com/Hickar/gin-rush/pkg/database"
 )
 
 func TestServer(t *testing.T) {
 	router := routes.Setup()
+	database.NewMockDB()
 
 	w := httptest.NewRecorder()
 	req, err := http.NewRequest("GET", "/", nil)
