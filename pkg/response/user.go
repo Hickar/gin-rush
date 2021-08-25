@@ -1,6 +1,6 @@
 package response
 
-type AuthResponse struct {
+type AuthUserResponse struct {
 	Token string `json:"token"`
 }
 

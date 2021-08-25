@@ -8,6 +8,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var _db *Database
@@ -39,7 +40,9 @@ func NewMockDB() (*Database, sqlmock.Sqlmock) {
 		mysql.Config{
 			Conn:                      dbm,
 			SkipInitializeWithVersion: true}),
-		&gorm.Config{},
+		&gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		},
 	)
 	if err != nil {
 		log.Fatalf("Unexpected error occured during creation of db mock: %s", err)

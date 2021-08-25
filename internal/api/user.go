@@ -22,7 +22,7 @@ import (
 // @Accept json
 // @Produces json
 // @Param new_user body request.CreateUserRequest true "JSON with user credentials"
-// @Success 201 {object} response.AuthResponse{token=string}
+// @Success 201 {object} response.AuthUserResponse{token=string}
 // @Failure 409
 // @Failure 422
 // @Router /user [post]
@@ -75,7 +75,7 @@ func CreateUser(c *gin.Context) {
 
 	c.JSON(
 		http.StatusCreated,
-		response.AuthResponse{Token: token},
+		response.AuthUserResponse{Token: token},
 	)
 }
 
@@ -85,7 +85,7 @@ func CreateUser(c *gin.Context) {
 // @Accept json
 // @Produces json
 // @Param login_user body request.AuthUserRequest true "JSON with credentials"
-// @Success 200 {object} response.AuthResponse{token=string}
+// @Success 200 {object} response.AuthUserResponse{token=string}
 // @Failure 404
 // @Failure 422
 // @Router /authorize [post]
@@ -106,18 +106,22 @@ func AuthorizeUser(c *gin.Context) {
 		return
 	}
 
-	if valid := security.VerifyPassword(input.Password, user.Password, user.Salt); valid {
-		token, err := security.GenerateJWT(user.ID)
-		if err != nil {
-			c.Status(http.StatusConflict)
-			return
-		}
-
-		c.JSON(
-			http.StatusOK,
-			response.AuthResponse{Token: token},
-		)
+	valid := security.VerifyPassword(input.Password, user.Password, user.Salt);
+	if !valid {
+		c.Status(http.StatusConflict)
+		return
 	}
+
+	token, err := security.GenerateJWT(user.ID)
+	if err != nil {
+		c.Status(http.StatusConflict)
+		return
+	}
+
+	c.JSON(
+		http.StatusOK,
+		response.AuthUserResponse{Token: token},
+	)
 }
 
 // UpdateUser godoc
@@ -143,8 +147,8 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	db := database.GetDB()
-	authUserID, _ := c.MustGet("user_id").(uint)
-
+	authUserID := c.GetUint("user_id")
+	
 	if err := db.FindByID(&user, authUserID); err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -197,7 +201,7 @@ func GetUser(c *gin.Context) {
 	}
 
 	db := database.GetDB()
-	authUserID, _ := c.MustGet("user_id").(uint)
+	authUserID := c.GetUint("user_id")
 
 	err = db.FindByID(&user, uint(userID))
 	if err != nil {
@@ -241,7 +245,7 @@ func DeleteUser(c *gin.Context) {
 	}
 
 	db := database.GetDB()
-	authUserID, _ := c.MustGet("user_id").(uint)
+	authUserID := c.GetUint("user_id")
 
 	if err = db.FindByID(&user, uint(userID)); err != nil {
 		c.Status(http.StatusNotFound)
@@ -266,7 +270,7 @@ func DeleteUser(c *gin.Context) {
 // @Description Method for enabling user via verification message sent by email
 // @Produces json
 // @Param confirmation_code path string true "Confirmation code"
-// @Success 200 {object} response.AuthResponse{token=string}
+// @Success 200 {object} response.AuthUserResponse{token=string}
 // @Failure 404
 // @Failure 422
 // @Router /authorize/email/challenge/{code} [get]
@@ -299,6 +303,6 @@ func EnableUser(c *gin.Context) {
 
 	c.JSON(
 		http.StatusOK,
-		response.AuthResponse{Token: token},
+		response.AuthUserResponse{Token: token},
 	)
 }
