@@ -37,7 +37,7 @@ func CreateUser(c *gin.Context) {
 
 	db := database.GetDB()
 
-	exists, err := db.Exists(&models.User{}, "email", input.Email)
+	exists, _ := db.Exists(&models.User{}, "email", input.Email)
 	if exists {
 		c.Status(http.StatusConflict)
 		return
