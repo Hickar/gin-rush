@@ -55,6 +55,13 @@ jobs:
     env:
       ROLLBAR_TOKEN: ${{ secrets.ROLLBAR_TOKEN }}
       ROLLBAR_ENV_MODE: production
+      API_HOST: ${{ secrets.API_HOST }}
+      GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+      GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+      GMAIL_ACCESS_TOKEN: ${{ secrets.GMAIL_ACCESS_TOKEN }}
+      GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+      GMAIL_CLIENT_USERNAME: ${{ secrets.GMAIL_CLIENT_USERNAME }}
+      GMAIL_CLIENT_PASSWORD: ${{ secrets.GMAIL_CLIENT_PASSWORD }}
       DB_ROOT_PASS: ${{ secrets.DB_ROOT_PASS }}
       DB_HOST: db
       DB_USER: ${{ secrets.DB_USER }}
