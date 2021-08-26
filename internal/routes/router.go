@@ -5,7 +5,7 @@ import (
 
 	"github.com/Hickar/gin-rush/internal/api"
 	"github.com/Hickar/gin-rush/internal/middlewares"
-	"github.com/Hickar/gin-rush/internal/security"
+	"github.com/Hickar/gin-rush/internal/validators"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -20,10 +20,10 @@ func Setup() *gin.Engine {
 	router.Use(gin.Recovery())
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		v.RegisterValidation("notblank", security.NotBlank)
-		v.RegisterValidation("validemail", security.ValidEmail)
-		v.RegisterValidation("validpassword", security.ValidPassword)
-		v.RegisterValidation("validbirthdate", security.ValidBirthDate)
+		v.RegisterValidation("notblank", validators.NotBlank)
+		v.RegisterValidation("validemail", validators.ValidEmail)
+		v.RegisterValidation("validpassword", validators.ValidPassword)
+		v.RegisterValidation("validbirthdate", validators.ValidBirthDate)
 	}
 
 	router.GET("/", func(c *gin.Context) {

@@ -14,6 +14,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
+	"github.com/Hickar/gin-rush/internal/validators"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/Hickar/gin-rush/pkg/request"
@@ -184,71 +185,13 @@ func TestAuthorizeUserNotFound(t *testing.T) {
 	}
 }
 
-func TestUserCredentialsValidators(t *testing.T) {
-	r := gin.New()
-	r.POST("/api/user", CreateUser)
-
-	tests := []struct {
-		Name         string
-		BodyData     request.CreateUserRequest
-		ExpectedCode int
-		Msg          string
-	}{
-		{
-			"Blank name",
-			request.CreateUserRequest{Name: "", Email: "dummy@email.io", Password: "Pass/w0rd"},
-			http.StatusUnprocessableEntity,
-			"Should return 422, name is blank",
-		},
-		{
-			"Blank email",
-			request.CreateUserRequest{Name: "someUser", Email: "", Password: "Pass/w0rd"},
-			http.StatusUnprocessableEntity,
-			"Should return 422, email is blank",
-		},
-		{
-			"Invalid email",
-			request.CreateUserRequest{Name: "someUser", Email: "invalid.email", Password: "Pass/w0rd"},
-			http.StatusUnprocessableEntity,
-			"Should return 422, specified email doesn't meet requirements of RFC 3696 standard",
-		},
-		{
-			"Invalid password",
-			request.CreateUserRequest{Name: "someUser", Email: "dummy@email.io", Password: "v"},
-			http.StatusUnprocessableEntity,
-			"Must return 422, password must be length of 8, contain one uppercase character, symbol and digit",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			bodyData, _ := json.Marshal(tt.BodyData)
-			buf := bytes.NewBuffer(bodyData)
-
-			req, err := http.NewRequest("POST", "/api/user", buf)
-			req.Header.Set("Content-Type", "application/json")
-
-			if err != nil {
-				t.Fatalf("Error during request construction: %s", err)
-			}
-
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
-
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Returned code %d – %s", w.Code, tt.Msg)
-			}
-		})
-	}
-}
-
 func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		v.RegisterValidation("notblank", security.NotBlank)
-		v.RegisterValidation("validemail", security.ValidEmail)
-		v.RegisterValidation("validpassword", security.ValidPassword)
+		v.RegisterValidation("notblank", validators.NotBlank)
+		v.RegisterValidation("validemail", validators.ValidEmail)
+		v.RegisterValidation("validpassword", validators.ValidPassword)
 	}
 
 	exitCode := m.Run()

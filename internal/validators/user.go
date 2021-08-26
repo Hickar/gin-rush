@@ -1,4 +1,4 @@
-package security
+package validators
 
 import (
 	"net/mail"
