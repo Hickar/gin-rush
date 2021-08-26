@@ -95,210 +95,178 @@ func TestCreateUser(t *testing.T) {
 	}
 }
 
-func TestAuthorizeUserSuccess(t *testing.T) {
+func TestAuthorizeUser(t *testing.T) {
 	_, mock := database.NewMockDB()
 	r := gin.New()
 	r.POST("/api/authorize", AuthorizeUser)
 
-	reqData := request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"}
-	reqEnc, _ := json.Marshal(reqData)
-	reqByte := bytes.NewBuffer(reqEnc)
-
-	salt, _ := security.RandomBytes(16)
-	hashedPassword, _ := security.HashPassword(reqData.Password, salt)
-
-	req, _ := http.NewRequest("POST", "/api/authorize", reqByte)
-	w := httptest.NewRecorder()
-
-	query := "SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
-	columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
-	rows := sqlmock.NewRows(columns).AddRow(0, time.Now(), time.Now(), sql.NullTime{}, "NewUser", reqData.Email, hashedPassword, salt, sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
-
-	mock.ExpectQuery(query).WithArgs(reqData.Email).WillReturnRows(rows)
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected code %d, got %d instead", http.StatusOK, w.Code)
+	tests := []struct {
+		Name           string
+		BodyData       request.AuthUserRequest
+		ActualPassword string
+		ExpectedCode   int
+		MockSetup      func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte)
+		Msg            string
+	}{
+		{
+			Name:           "Success",
+			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
+			ActualPassword: "Pass/w0rd",
+			ExpectedCode:   http.StatusOK,
+			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
+				query := "SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+				rows := sqlmock.NewRows(columns).AddRow(0, time.Now(), time.Now(), sql.NullTime{}, "NewUser", email, actualPassword, salt, sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+				mock.ExpectQuery(query).WithArgs(email).WillReturnRows(rows)
+			},
+			Msg: "Should return 200, user credentials are correct",
+		},
+		{
+			Name:           "WrongPassword",
+			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
+			ActualPassword: "notGuessedPassword",
+			ExpectedCode:   http.StatusConflict,
+			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
+				query := "SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+				rows := sqlmock.NewRows(columns).AddRow(0, time.Now(), time.Now(), sql.NullTime{}, "NewUser", email, actualPassword, salt, sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+				mock.ExpectQuery(query).WithArgs(email).WillReturnRows(rows)
+			},
+			Msg: "Should return 409, user credentials are incorrect",
+		},
+		{
+			Name:           "UserNotFound",
+			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
+			ActualPassword: "",
+			ExpectedCode:   http.StatusNotFound,
+			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
+				query := "SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				mock.ExpectQuery(query).WithArgs(email).WillReturnError(gorm.ErrRecordNotFound)
+			},
+			Msg: "Should return 404, user doesn't exist",
+		},
 	}
 
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Some of DB query expectations were not met: %s", err)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			reqEnc, _ := json.Marshal(tt.BodyData)
+			reqByte := bytes.NewBuffer(reqEnc)
 
-func TestAuthorizeUserWrongPassword(t *testing.T) {
-	_, mock := database.NewMockDB()
-	r := gin.New()
-	r.POST("/api/authorize", AuthorizeUser)
+			salt, _ := security.RandomBytes(16)
+			hashedPassword, _ := security.HashPassword(tt.ActualPassword, salt)
 
-	reqData := request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"}
-	reqEnc, _ := json.Marshal(reqData)
-	reqByte := bytes.NewBuffer(reqEnc)
+			tt.MockSetup(mock, tt.BodyData.Email, hashedPassword, salt)
 
-	salt, _ := security.RandomBytes(16)
-	hashedPassword, _ := security.HashPassword("WrongPassword", salt)
+			req, _ := http.NewRequest("POST", "/api/authorize", reqByte)
+			w := httptest.NewRecorder()
 
-	req, _ := http.NewRequest("POST", "/api/authorize", reqByte)
-	w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
 
-	query := "SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
-	columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
-	rows := sqlmock.NewRows(columns).AddRow(0, time.Now(), time.Now(), sql.NullTime{}, "NewUser", reqData.Email, hashedPassword, salt, sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+			if w.Code != tt.ExpectedCode {
+				t.Errorf("Expected code %d, got %d instead", tt.ExpectedCode, w.Code)
+			}
 
-	mock.ExpectQuery(query).WithArgs(reqData.Email).WillReturnRows(rows)
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusConflict {
-		t.Errorf("Expected code %d, got %d instead", http.StatusConflict, w.Code)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Some of DB query expectations were not met: %s", err)
-	}
-}
-
-func TestAuthorizeUserNotFound(t *testing.T) {
-	_, mock := database.NewMockDB()
-	r := gin.New()
-	r.POST("/api/authorize", AuthorizeUser)
-
-	reqData := request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"}
-	reqEnc, _ := json.Marshal(reqData)
-	reqByte := bytes.NewBuffer(reqEnc)
-
-	req, _ := http.NewRequest("POST", "/api/authorize", reqByte)
-	w := httptest.NewRecorder()
-
-	query := "SELECT * FROM `users` WHERE email = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
-	mock.ExpectQuery(query).WithArgs(reqData.Email).WillReturnError(gorm.ErrRecordNotFound)
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected code %d, got %d instead", http.StatusNotFound, w.Code)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Some of DB query expectations were not met: %s", err)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("Some of DB query expectations were not met: %s", err)
+			}
+		})
 	}
 }
 
-func jwtMiddlewareMock() gin.HandlerFunc {
+func jwtMiddlewareMock(id uint) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("user_id", uint(42))
 		c.Next()
 	}
 }
 
-func TestUpdateUserSuccess(t *testing.T) {
+func TestUpdateUser(t *testing.T) {
 	_, mock := database.NewMockDB()
 	r := gin.New()
-	r.Use(jwtMiddlewareMock())
-	r.PATCH("/api/user", UpdateUser).Use(jwtMiddlewareMock())
 
-	reqData := &request.UpdateUserRequest{
-		Name:      "NewUser2",
-		Bio:       "Hi, it's info about me",
-		Avatar:    "https://some.img.service/myPhotoId",
-		BirthDate: "1989-04-19",
-	}
-	reqBody, _ := json.Marshal(reqData)
-	reqBytes := bytes.NewBuffer(reqBody)
+	trueID := 42
 
-	req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
-	w := httptest.NewRecorder()
+	r.Use(jwtMiddlewareMock(uint(trueID)))
+	r.PATCH("/api/user", UpdateUser)
 
-	// Find User
-	query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
-	columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
-	rows := sqlmock.NewRows(columns).AddRow(42, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
-	mock.ExpectQuery(query).WithArgs(42).WillReturnRows(rows)
+	tests := []struct {
+		Name         string
+		BodyData     request.UpdateUserRequest
+		GuessID      int
+		ActualID     int
+		ExpectedCode int
+		MockSetup    func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int)
+		Msg          string
+	}{
+		{
+			Name:         "Success",
+			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
+			GuessID:      trueID,
+			ActualID:     trueID,
+			ExpectedCode: http.StatusNoContent,
+			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
+				query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
 
-	// Update User
-	formattedTime, _ := time.Parse("2006-01-02", reqData.BirthDate)
-	query = "UPDATE `users` SET `created_at`=?,`updated_at`=?,`deleted_at`=?,`name`=?,`email`=?,`password`=?,`salt`=?,`bio`=?,`avatar`=?,`birth_date`=?,`enabled`=?,`confirmation_code`=? WHERE `id` = ?"
-	mock.ExpectBegin()
-	mock.ExpectExec(query).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), reqData.Name, "dummy@email.io", []byte("pass"), []byte("salt"), reqData.Bio, reqData.Avatar, formattedTime, false, "code", 42).WillReturnResult(sqlmock.NewResult(1, 1))
-	mock.ExpectCommit()
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNoContent {
-		t.Errorf("Expected code %d, got %d", http.StatusNoContent, w.Code)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Some of DB expectations were not met: %s", err)
-	}
-}
-
-func TestUpdateUserNotFound(t *testing.T) {
-	_, mock := database.NewMockDB()
-	r := gin.New()
-	r.Use(jwtMiddlewareMock())
-	r.PATCH("/api/user", UpdateUser).Use(jwtMiddlewareMock())
-
-	reqData := &request.UpdateUserRequest{
-		Name:      "NewUser2",
-		Bio:       "Hi, it's info about me",
-		Avatar:    "https://some.img.service/myPhotoId",
-		BirthDate: "1989-04-19",
-	}
-	reqBody, _ := json.Marshal(reqData)
-	reqBytes := bytes.NewBuffer(reqBody)
-
-	req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
-	w := httptest.NewRecorder()
-
-	// Find User
-	query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
-	mock.ExpectQuery(query).WithArgs(42).WillReturnError(gorm.ErrRecordNotFound)
-
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("Expected code %d, got %d", http.StatusNotFound, w.Code)
+				// Update User
+				formattedTime, _ := time.Parse("2006-01-02", reqData.BirthDate)
+				query = "UPDATE `users` SET `created_at`=?,`updated_at`=?,`deleted_at`=?,`name`=?,`email`=?,`password`=?,`salt`=?,`bio`=?,`avatar`=?,`birth_date`=?,`enabled`=?,`confirmation_code`=? WHERE `id` = ?"
+				mock.ExpectBegin()
+				mock.ExpectExec(query).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), reqData.Name, "dummy@email.io", []byte("pass"), []byte("salt"), reqData.Bio, reqData.Avatar, formattedTime, false, "code", guessID).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
+			Msg: "Should return 204, request was sent from same user it's must update",
+		},
+		{
+			Name:         "Not Found",
+			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
+			GuessID:      trueID,
+			ActualID:     trueID,
+			ExpectedCode: http.StatusNotFound,
+			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
+				query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
+			},
+			Msg: "Should return 404, user doesn't exist",
+		},
+		{
+			Name:         "Forbidden",
+			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
+			GuessID:      trueID,
+			ActualID:     43,
+			ExpectedCode: http.StatusForbidden,
+			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
+				query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+				rows := sqlmock.NewRows(columns).AddRow(actualID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
+			},
+			Msg: "Should return 403, request was made by other user",
+		},
 	}
 
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Some of DB expectations were not met: %s", err)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			reqBody, _ := json.Marshal(tt.BodyData)
+			reqBytes := bytes.NewBuffer(reqBody)
 
-func TestUpdateUserForbidden(t *testing.T) {
-	_, mock := database.NewMockDB()
-	r := gin.New()
-	r.Use(jwtMiddlewareMock())
-	r.PATCH("/api/user", UpdateUser).Use(jwtMiddlewareMock())
+			req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
+			w := httptest.NewRecorder()
 
-	reqData := &request.UpdateUserRequest{
-		Name:      "NewUser2",
-		Bio:       "Hi, it's info about me",
-		Avatar:    "https://some.img.service/myPhotoId",
-		BirthDate: "1989-04-19",
-	}
-	reqBody, _ := json.Marshal(reqData)
-	reqBytes := bytes.NewBuffer(reqBody)
+			tt.MockSetup(mock, tt.BodyData, tt.GuessID, tt.ActualID)
 
-	req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
-	w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
 
-	// Find User
-	query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
-	columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
-	rows := sqlmock.NewRows(columns).AddRow(43, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
-	mock.ExpectQuery(query).WithArgs(42).WillReturnRows(rows)
+			if w.Code != tt.ExpectedCode {
+				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			}
 
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusForbidden {
-		t.Errorf("Expected code %d, got %d", http.StatusForbidden, w.Code)
-	}
-
-	if err := mock.ExpectationsWereMet(); err != nil {
-		t.Errorf("Some of DB expectations were not met: %s", err)
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("Some of DB expectations were not met: %s", err)
+			}
+		})
 	}
 }
 
