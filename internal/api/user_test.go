@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -175,7 +176,7 @@ func TestAuthorizeUser(t *testing.T) {
 
 func jwtMiddlewareMock(id uint) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Set("user_id", uint(42))
+		c.Set("user_id", id)
 		c.Next()
 	}
 }
@@ -257,6 +258,76 @@ func TestUpdateUser(t *testing.T) {
 
 			tt.MockSetup(mock, tt.BodyData, tt.GuessID, tt.ActualID)
 
+			r.ServeHTTP(w, req)
+
+			if w.Code != tt.ExpectedCode {
+				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			}
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("Some of DB expectations were not met: %s", err)
+			}
+		})
+	}
+}
+
+func TestGetUser(t *testing.T) {
+	_, mock := database.NewMockDB()
+	r := gin.New()
+
+	trueID := 42
+
+	r.Use(jwtMiddlewareMock(uint(trueID)))
+	r.GET("/api/user/:id", GetUser)
+
+	tests := []struct {
+		Name         string
+		GuessID      int
+		ActualID     int
+		ExpectedCode int
+		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID int)
+		Msg          string
+	}{
+		{
+			Name:         "Success",
+			GuessID:      trueID,
+			ActualID:     trueID,
+			ExpectedCode: http.StatusOK,
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {
+				query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
+			},
+			Msg: "Should return 200, request was sent from same user it's must update",
+		},
+		{
+			Name:         "Not Found",
+			GuessID:      trueID,
+			ActualID:     trueID,
+			ExpectedCode: http.StatusNotFound,
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {
+				query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
+			},
+			Msg: "Should return 404, user doesn't exist",
+		},
+		{
+			Name:         "Forbidden",
+			GuessID:      trueID,
+			ActualID:     43,
+			ExpectedCode: http.StatusForbidden,
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {},
+			Msg: "Should return 403, request was made by other user",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.MockSetup(mock, tt.GuessID, tt.ActualID)
+
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/user/%d", tt.ActualID), nil)
+			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
 			if w.Code != tt.ExpectedCode {

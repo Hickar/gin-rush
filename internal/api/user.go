@@ -193,24 +193,23 @@ func UpdateUser(c *gin.Context) {
 // @Security ApiKeyAuth
 func GetUser(c *gin.Context) {
 	var user models.User
-	userID, err := strconv.Atoi(c.Param("id"))
 
+	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
-	db := database.GetDB()
 	authUserID := c.GetUint("user_id")
-
-	err = db.FindByID(&user, uint(userID))
-	if err != nil {
-		c.Status(http.StatusNotFound)
+	if uint(userID) != authUserID {
+		c.Status(http.StatusForbidden)
 		return
 	}
 
-	if uint(userID) != authUserID {
-		c.Status(http.StatusForbidden)
+	db := database.GetDB()
+	err = db.FindByID(&user, uint(userID))
+	if err != nil {
+		c.Status(http.StatusNotFound)
 		return
 	}
 
@@ -237,23 +236,22 @@ func GetUser(c *gin.Context) {
 // @Router /user/{id} [delete]
 func DeleteUser(c *gin.Context) {
 	var user models.User
-	userID, err := strconv.Atoi(c.Param("id"))
 
+	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
-	db := database.GetDB()
 	authUserID := c.GetUint("user_id")
-
-	if err = db.FindByID(&user, uint(userID)); err != nil {
-		c.Status(http.StatusNotFound)
+	if uint(userID) != authUserID {
+		c.Status(http.StatusForbidden)
 		return
 	}
 
-	if uint(userID) != authUserID {
-		c.Status(http.StatusForbidden)
+	db := database.GetDB()
+	if err = db.FindByID(&user, uint(userID)); err != nil {
+		c.Status(http.StatusNotFound)
 		return
 	}
 
