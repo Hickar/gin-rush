@@ -175,7 +175,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	c.Status(http.StatusOK)
+	c.Status(http.StatusNoContent)
 }
 
 // GetUser godoc

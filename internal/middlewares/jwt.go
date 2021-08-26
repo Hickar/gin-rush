@@ -27,7 +27,7 @@ func JWT() gin.HandlerFunc {
 				case errors.As(err, &jwt.ValidationError{}):
 					code = http.StatusUnauthorized
 				default:
-					code = http.StatusUnauthorized
+					code = http.StatusInternalServerError
 				}
 			}
 		}

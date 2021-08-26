@@ -185,6 +185,123 @@ func TestAuthorizeUserNotFound(t *testing.T) {
 	}
 }
 
+func jwtMiddlewareMock() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("user_id", uint(42))
+		c.Next()
+	}
+}
+
+func TestUpdateUserSuccess(t *testing.T) {
+	_, mock := database.NewMockDB()
+	r := gin.New()
+	r.Use(jwtMiddlewareMock())
+	r.PATCH("/api/user", UpdateUser).Use(jwtMiddlewareMock())
+
+	reqData := &request.UpdateUserRequest{
+		Name:      "NewUser2",
+		Bio:       "Hi, it's info about me",
+		Avatar:    "https://some.img.service/myPhotoId",
+		BirthDate: "1989-04-19",
+	}
+	reqBody, _ := json.Marshal(reqData)
+	reqBytes := bytes.NewBuffer(reqBody)
+
+	req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
+	w := httptest.NewRecorder()
+
+	// Find User
+	query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+	columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+	rows := sqlmock.NewRows(columns).AddRow(42, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+	mock.ExpectQuery(query).WithArgs(42).WillReturnRows(rows)
+
+	// Update User
+	formattedTime, _ := time.Parse("2006-01-02", reqData.BirthDate)
+	query = "UPDATE `users` SET `created_at`=?,`updated_at`=?,`deleted_at`=?,`name`=?,`email`=?,`password`=?,`salt`=?,`bio`=?,`avatar`=?,`birth_date`=?,`enabled`=?,`confirmation_code`=? WHERE `id` = ?"
+	mock.ExpectBegin()
+	mock.ExpectExec(query).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), reqData.Name, "dummy@email.io", []byte("pass"), []byte("salt"), reqData.Bio, reqData.Avatar, formattedTime, false, "code", 42).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf("Expected code %d, got %d", http.StatusNoContent, w.Code)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Some of DB expectations were not met: %s", err)
+	}
+}
+
+func TestUpdateUserNotFound(t *testing.T) {
+	_, mock := database.NewMockDB()
+	r := gin.New()
+	r.Use(jwtMiddlewareMock())
+	r.PATCH("/api/user", UpdateUser).Use(jwtMiddlewareMock())
+
+	reqData := &request.UpdateUserRequest{
+		Name:      "NewUser2",
+		Bio:       "Hi, it's info about me",
+		Avatar:    "https://some.img.service/myPhotoId",
+		BirthDate: "1989-04-19",
+	}
+	reqBody, _ := json.Marshal(reqData)
+	reqBytes := bytes.NewBuffer(reqBody)
+
+	req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
+	w := httptest.NewRecorder()
+
+	// Find User
+	query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+	mock.ExpectQuery(query).WithArgs(42).WillReturnError(gorm.ErrRecordNotFound)
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Expected code %d, got %d", http.StatusNotFound, w.Code)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Some of DB expectations were not met: %s", err)
+	}
+}
+
+func TestUpdateUserForbidden(t *testing.T) {
+	_, mock := database.NewMockDB()
+	r := gin.New()
+	r.Use(jwtMiddlewareMock())
+	r.PATCH("/api/user", UpdateUser).Use(jwtMiddlewareMock())
+
+	reqData := &request.UpdateUserRequest{
+		Name:      "NewUser2",
+		Bio:       "Hi, it's info about me",
+		Avatar:    "https://some.img.service/myPhotoId",
+		BirthDate: "1989-04-19",
+	}
+	reqBody, _ := json.Marshal(reqData)
+	reqBytes := bytes.NewBuffer(reqBody)
+
+	req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
+	w := httptest.NewRecorder()
+
+	// Find User
+	query := "SELECT * FROM `users` WHERE `users`.`id` = ? AND `users`.`deleted_at` IS NULL ORDER BY `users`.`id` LIMIT 1"
+	columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+	rows := sqlmock.NewRows(columns).AddRow(43, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
+	mock.ExpectQuery(query).WithArgs(42).WillReturnRows(rows)
+
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("Expected code %d, got %d", http.StatusForbidden, w.Code)
+	}
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("Some of DB expectations were not met: %s", err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	gin.SetMode(gin.TestMode)
 
@@ -192,6 +309,7 @@ func TestMain(m *testing.M) {
 		v.RegisterValidation("notblank", validators.NotBlank)
 		v.RegisterValidation("validemail", validators.ValidEmail)
 		v.RegisterValidation("validpassword", validators.ValidPassword)
+		v.RegisterValidation("validbirthdate", validators.ValidBirthDate)
 	}
 
 	exitCode := m.Run()
