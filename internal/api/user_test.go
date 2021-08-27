@@ -41,7 +41,7 @@ func TestCreateUser(t *testing.T) {
 		Msg          string
 	}{
 		{
-			"Create New User",
+			"Success",
 			models.User{Name: "NewUser", Email: "dummy@email.io", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
 			http.StatusCreated,
 			func(mock sqlmock.Sqlmock, user models.User) {
@@ -54,7 +54,7 @@ func TestCreateUser(t *testing.T) {
 			"Should return 201, this is new user",
 		},
 		{
-			"Create Existing User",
+			"Existing",
 			models.User{Name: "NewUser", Email: "dummy@email.io", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
 			http.StatusConflict,
 			func(mock sqlmock.Sqlmock, user models.User) {
@@ -65,6 +65,13 @@ func TestCreateUser(t *testing.T) {
 				mock.ExpectRollback()
 			},
 			"Should return 409, user with these credentials already exists",
+		},
+		{
+			"Invalid",
+			models.User{Name: "", Email: "dummy@email.io", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
+			http.StatusUnprocessableEntity,
+			func(mock sqlmock.Sqlmock, user models.User) {},
+			"Should return 422, user with these credentials already exists",
 		},
 	}
 
@@ -136,7 +143,7 @@ func TestAuthorizeUser(t *testing.T) {
 			Msg: "Should return 409, user credentials are incorrect",
 		},
 		{
-			Name:           "UserNotFound",
+			Name:           "NotFound",
 			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
 			ActualPassword: "",
 			ExpectedCode:   http.StatusNotFound,
@@ -144,6 +151,14 @@ func TestAuthorizeUser(t *testing.T) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(email).WillReturnError(gorm.ErrRecordNotFound)
 			},
+			Msg: "Should return 404, user doesn't exist",
+		},
+		{
+			Name:           "NotFound",
+			BodyData:       request.AuthUserRequest{Email: "", Password: "Pass/w0rd"},
+			ActualPassword: "",
+			ExpectedCode:   http.StatusUnprocessableEntity,
+			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {},
 			Msg: "Should return 404, user doesn't exist",
 		},
 	}
@@ -221,7 +236,7 @@ func TestUpdateUser(t *testing.T) {
 			Msg: "Should return 204, request was sent from same user it's must update",
 		},
 		{
-			Name:         "Not Found",
+			Name:         "NotFound",
 			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
 			GuessID:      trueID,
 			ActualID:     trueID,
@@ -245,6 +260,15 @@ func TestUpdateUser(t *testing.T) {
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
 			},
 			Msg: "Should return 403, request was made by other user",
+		},
+		{
+			Name:         "Invalid",
+			BodyData:     request.UpdateUserRequest{Name: "", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: ""},
+			GuessID:      trueID,
+			ActualID:     43,
+			ExpectedCode: http.StatusUnprocessableEntity,
+			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {},
+			Msg: "Should return 422, request was made by other user",
 		},
 	}
 
@@ -283,9 +307,9 @@ func TestGetUser(t *testing.T) {
 	tests := []struct {
 		Name         string
 		GuessID      int
-		ActualID     int
-		ExpectedCode int
-		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID int)
+		ActualID     interface{}
+		ExpectedCode interface{}
+		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID interface{})
 		Msg          string
 	}{
 		{
@@ -293,7 +317,7 @@ func TestGetUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     trueID,
 			ExpectedCode: http.StatusOK,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
@@ -302,11 +326,11 @@ func TestGetUser(t *testing.T) {
 			Msg: "Should return 200, request was sent from same user it's must update",
 		},
 		{
-			Name:         "Not Found",
+			Name:         "NotFound",
 			GuessID:      trueID,
 			ActualID:     trueID,
 			ExpectedCode: http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
 			},
@@ -317,8 +341,16 @@ func TestGetUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     43,
 			ExpectedCode: http.StatusForbidden,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {},
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
 			Msg: "Should return 403, request was made by other user",
+		},
+		{
+			Name:         "Invalid",
+			GuessID:      trueID,
+			ActualID:     "notValidID",
+			ExpectedCode: http.StatusUnprocessableEntity,
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			Msg: "Should return 422, request was made by other user",
 		},
 	}
 
@@ -326,7 +358,7 @@ func TestGetUser(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.MockSetup(mock, tt.GuessID, tt.ActualID)
 
-			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/user/%d", tt.ActualID), nil)
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/user/%v", tt.ActualID), nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
@@ -352,10 +384,10 @@ func TestDeleteUser(t *testing.T) {
 
 	tests := []struct {
 		Name         string
-		GuessID      int
-		ActualID     int
+		GuessID      interface{}
+		ActualID     interface{}
 		ExpectedCode int
-		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID int)
+		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID interface{})
 		Msg          string
 	}{
 		{
@@ -363,7 +395,7 @@ func TestDeleteUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     trueID,
 			ExpectedCode: http.StatusNoContent,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
@@ -382,7 +414,7 @@ func TestDeleteUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     trueID,
 			ExpectedCode: http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
 			},
@@ -393,8 +425,16 @@ func TestDeleteUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     43,
 			ExpectedCode: http.StatusForbidden,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID int) {},
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
 			Msg: "Should return 403, request was made by other user",
+		},
+		{
+			Name:         "Invalid",
+			GuessID:      trueID,
+			ActualID:     "notValidID",
+			ExpectedCode: http.StatusUnprocessableEntity,
+			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			Msg: "Should return 422, request was made by other user",
 		},
 	}
 
@@ -402,7 +442,7 @@ func TestDeleteUser(t *testing.T) {
 		t.Run(tt.Name, func(t *testing.T) {
 			tt.MockSetup(mock, tt.GuessID, tt.ActualID)
 
-			req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/user/%d", tt.ActualID), nil)
+			req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/user/%v", tt.ActualID), nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 

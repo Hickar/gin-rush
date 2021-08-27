@@ -1,78 +1,88 @@
 package validators
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/Hickar/gin-rush/internal/api"
 	"github.com/Hickar/gin-rush/pkg/request"
-	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
 
-func TestUserCredentialsValidators(t *testing.T) {
-	r := gin.New()
-	r.POST("/api/user", api.CreateUser)
-
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		v.RegisterValidation("notblank", NotBlank)
-		v.RegisterValidation("validemail", ValidEmail)
-		v.RegisterValidation("validpassword", ValidPassword)
+func TestUserValidators(t *testing.T) {
+	v, ok := binding.Validator.Engine().(*validator.Validate)
+	if !ok {
+		t.Fatal("unexpected error during validator initialization")
 	}
 
+	v.RegisterValidation("notblank", NotBlank)
+	v.RegisterValidation("validemail", ValidEmail)
+	v.RegisterValidation("validpassword", ValidPassword)
+	v.RegisterValidation("validbirthdate", ValidBirthDate)
+
+	v.Struct(request.CreateUserRequest{Name: "someUser", Email: "invalid.email", Password: "Pass/w0rd"})
+
 	tests := []struct {
-		Name         string
-		BodyData     request.CreateUserRequest
-		ExpectedCode int
-		Msg          string
+		Name      string
+		Data      interface{}
+		ShouldErr bool
+		Msg       string
 	}{
 		{
-			"Blank name",
+			"Blank_name_fail",
 			request.CreateUserRequest{Name: "", Email: "dummy@email.io", Password: "Pass/w0rd"},
-			http.StatusUnprocessableEntity,
-			"Should return 422, name is blank",
+			true,
+			"Name is blank",
 		},
 		{
-			"Blank email",
+			"Blank_name_pass",
+			request.CreateUserRequest{Name: "someUser", Email: "dummy@email.io", Password: "Pass/w0rd"},
+			false,
+			"Name is not blank",
+		},
+		{
+			"Blank_email_fail",
 			request.CreateUserRequest{Name: "someUser", Email: "", Password: "Pass/w0rd"},
-			http.StatusUnprocessableEntity,
-			"Should return 422, email is blank",
+			true,
+			"Email is blank",
 		},
 		{
-			"Invalid email",
+			"Blank_email_pass",
+			request.CreateUserRequest{Name: "someUser", Email: "dummy@email.io", Password: "Pass/w0rd"},
+			false,
+			"Email is not blank",
+		},
+		{
+			"Invalid_email_fail",
 			request.CreateUserRequest{Name: "someUser", Email: "invalid.email", Password: "Pass/w0rd"},
-			http.StatusUnprocessableEntity,
-			"Should return 422, specified email doesn't meet requirements of RFC 3696 standard",
+			true,
+			"Specified email DOESN'T MEET requirements of RFC 3696 standard",
 		},
 		{
-			"Invalid password",
+			"Invalid_email_pass",
+			request.CreateUserRequest{Name: "someUser", Email: "dummy@email.io", Password: "Pass/w0rd"},
+			false,
+			"Specified email MEETS requirements of RFC 3696 standard",
+		},
+		{
+			"Invalid_password_fail",
 			request.CreateUserRequest{Name: "someUser", Email: "dummy@email.io", Password: "v"},
-			http.StatusUnprocessableEntity,
-			"Must return 422, password must be length of 8, contain one uppercase character, symbol and digit",
+			true,
+			"Password must be length of 8, contain one uppercase character, symbol and digit",
+		},
+		{
+			"Invalid_password_pass",
+			request.CreateUserRequest{Name: "someUser", Email: "dummy@email.io", Password: "Pass/w0rd"},
+			false,
+			"Password must be length of 8, contain one uppercase character, symbol and digit",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
-			bodyData, _ := json.Marshal(tt.BodyData)
-			buf := bytes.NewBuffer(bodyData)
+			err := v.Struct(tt.Data)
 
-			req, err := http.NewRequest("POST", "/api/user", buf)
-			req.Header.Set("Content-Type", "application/json")
-
-			if err != nil {
-				t.Fatalf("Error during request construction: %s", err)
-			}
-
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
-
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Returned code %d – %s", w.Code, tt.Msg)
+			if (err != nil && !tt.ShouldErr) || (err == nil && tt.ShouldErr) {
+				t.Errorf("Error: %s", tt.Msg)
 			}
 		})
 	}
