@@ -19,6 +19,7 @@ import (
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/Hickar/gin-rush/pkg/request"
+	"github.com/Hickar/gin-rush/pkg/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -71,7 +72,7 @@ func TestCreateUser(t *testing.T) {
 			models.User{Name: "", Email: "dummy@email.io", Password: []byte("Test/P4ass"), Salt: []byte("salt"), ConfirmationCode: "verificationCode"},
 			http.StatusUnprocessableEntity,
 			func(mock sqlmock.Sqlmock, user models.User) {},
-			"Should return 422, user with these credentials already exists",
+			"Should return 422, user credentials are invalid",
 		},
 	}
 
@@ -154,12 +155,12 @@ func TestAuthorizeUser(t *testing.T) {
 			Msg: "Should return 404, user doesn't exist",
 		},
 		{
-			Name:           "NotFound",
+			Name:           "Invalid",
 			BodyData:       request.AuthUserRequest{Email: "", Password: "Pass/w0rd"},
 			ActualPassword: "",
 			ExpectedCode:   http.StatusUnprocessableEntity,
-			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {},
-			Msg: "Should return 404, user doesn't exist",
+			MockSetup:      func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {},
+			Msg:            "Should return 422, user credentials are invalid",
 		},
 	}
 
@@ -267,8 +268,8 @@ func TestUpdateUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     43,
 			ExpectedCode: http.StatusUnprocessableEntity,
-			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {},
-			Msg: "Should return 422, request was made by other user",
+			MockSetup:    func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {},
+			Msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
@@ -341,16 +342,16 @@ func TestGetUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     43,
 			ExpectedCode: http.StatusForbidden,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg: "Should return 403, request was made by other user",
+			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			Msg:          "Should return 403, request was made by other user",
 		},
 		{
 			Name:         "Invalid",
 			GuessID:      trueID,
 			ActualID:     "notValidID",
 			ExpectedCode: http.StatusUnprocessableEntity,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg: "Should return 422, request was made by other user",
+			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			Msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
@@ -407,10 +408,10 @@ func TestDeleteUser(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			Msg: "Should return 200, request was sent from same user it's must delete",
+			Msg: "Should return 204, request was sent from same user it's must delete",
 		},
 		{
-			Name:         "Not Found",
+			Name:         "NotFound",
 			GuessID:      trueID,
 			ActualID:     trueID,
 			ExpectedCode: http.StatusNotFound,
@@ -425,16 +426,16 @@ func TestDeleteUser(t *testing.T) {
 			GuessID:      trueID,
 			ActualID:     43,
 			ExpectedCode: http.StatusForbidden,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg: "Should return 403, request was made by other user",
+			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			Msg:          "Should return 403, request was made by other user",
 		},
 		{
 			Name:         "Invalid",
 			GuessID:      trueID,
 			ActualID:     "notValidID",
 			ExpectedCode: http.StatusUnprocessableEntity,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg: "Should return 422, request was made by other user",
+			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			Msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
@@ -443,6 +444,77 @@ func TestDeleteUser(t *testing.T) {
 			tt.MockSetup(mock, tt.GuessID, tt.ActualID)
 
 			req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/user/%v", tt.ActualID), nil)
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			if w.Code != tt.ExpectedCode {
+				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			}
+
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Errorf("Some of DB expectations were not met: %s", err)
+			}
+		})
+	}
+}
+
+func TestEnableUser(t *testing.T) {
+	_, mock := database.NewMockDB()
+	r := gin.New()
+
+	userID := 42
+	trueCode := utils.RandomString(30)
+
+	r.Use(jwtMiddlewareMock(uint(userID)))
+	r.GET("/api/authorize/email/challenge/:code", EnableUser)
+
+	tests := []struct {
+		Name          string
+		ChallengeCode interface{}
+		ExpectedCode  int
+		MockSetup     func(mock sqlmock.Sqlmock, userID, code interface{})
+		Msg           string
+	}{
+		{
+			Name:          "Success",
+			ChallengeCode: trueCode,
+			ExpectedCode:  http.StatusOK,
+			MockSetup: func(mock sqlmock.Sqlmock, userID, code interface{}) {
+				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
+				rows := sqlmock.NewRows(columns).AddRow(userID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, code)
+				mock.ExpectQuery("SELECT(.*)").WithArgs(code).WillReturnRows(rows)
+
+				mock.ExpectBegin()
+				mock.ExpectExec("UPDATE(.*)").
+					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, true, code, userID).WillReturnResult(sqlmock.NewResult(1, 1))
+				mock.ExpectCommit()
+			},
+			Msg: "Should return 200, request was sent from same user it's must delete",
+		},
+		{
+			Name:          "NotFound",
+			ChallengeCode: trueCode,
+			ExpectedCode:  http.StatusNotFound,
+			MockSetup: func(mock sqlmock.Sqlmock, userID, code interface{}) {
+				query := "SELECT(.*)"
+				mock.ExpectQuery(query).WithArgs(code).WillReturnError(gorm.ErrRecordNotFound)
+			},
+			Msg: "Should return 404, user doesn't exist",
+		},
+		{
+			Name:          "Invalid",
+			ChallengeCode: "invalidCode",
+			ExpectedCode:  http.StatusUnprocessableEntity,
+			MockSetup:     func(mock sqlmock.Sqlmock, userID, code interface{}) {},
+			Msg:           "Should return 422, verification code is invalid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			tt.MockSetup(mock, userID, tt.ChallengeCode)
+
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/authorize/email/challenge/%v", tt.ChallengeCode), nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 

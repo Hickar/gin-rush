@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -290,7 +291,8 @@ func EnableUser(c *gin.Context) {
 
 	if !user.Enabled {
 		user.Enabled = true
-		db.Update(&user)
+		err := db.Update(&user)
+		fmt.Println(err)
 	}
 
 	token, err := security.GenerateJWT(user.ID)
