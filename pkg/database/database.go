@@ -31,7 +31,7 @@ func New(user, pass, host, name string) (*Database, error) {
 }
 
 func NewMockDB() (*Database, sqlmock.Sqlmock) {
-	dbm, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	dbm, mock, err := sqlmock.New()
 	if err != nil {
 		log.Fatalf("Unexpected error occured during creation of db mock: %s", err)
 	}
