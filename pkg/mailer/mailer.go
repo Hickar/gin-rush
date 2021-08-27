@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"time"
 
@@ -63,15 +62,9 @@ func SendMail(to, subject, body string) error {
 
 	_, err := GmailService.Users.Messages.Send("me", &message).Do()
 	if err != nil {
-		return fmt.Errorf("error during sending mail: %s", readOauthError(err))
+		errMsg := errors.Unwrap(err).Error()
+		return fmt.Errorf("error during sending mail: %s", errMsg)
 	}
 
 	return nil
-}
-
-func readOauthError(err error) error {
-	errRaw, _ := err.(*url.Error)
-	errResp, _ := errRaw.Err.(*oauth2.RetrieveError)
-	errMsg:= string(errResp.Body)
-	return errors.New(errMsg)
 }
