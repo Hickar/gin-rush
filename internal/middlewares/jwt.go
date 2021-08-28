@@ -1,12 +1,10 @@
 package middlewares
 
 import (
-	"errors"
 	"net/http"
 
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt"
 )
 
 func JWT() gin.HandlerFunc {
@@ -23,12 +21,7 @@ func JWT() gin.HandlerFunc {
 			claims, err = security.ParseJWT(token)
 
 			if err != nil {
-				switch {
-				case errors.As(err, &jwt.ValidationError{}):
-					code = http.StatusUnauthorized
-				default:
-					code = http.StatusInternalServerError
-				}
+				code = http.StatusUnauthorized
 			}
 		}
 
