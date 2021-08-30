@@ -25,9 +25,10 @@ jobs:
           go-version: '^1.16.6'
       - name: Checkout code
         uses: actions/checkout@v2
-        run: echo ${{ env.CONFIG_TEST }} >> ./conf/config.test.json
       - name: Install dependencies
         run: go mod download
+      - name: Copy configuration file
+        run: echo ${{ env.CONFIG_TEST }} >> ./conf/config.test.json
       - name: Run tests
         run: go test ./...
       - name: Run linters
@@ -70,6 +71,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+      - name: Copy configuration file
         run: echo ${{ env.CONFIG_PROD }} >> ./conf/config.prod.json
       - name: Run Docker-Compose
         run: docker-compose up -d
