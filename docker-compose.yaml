@@ -8,8 +8,6 @@ services:
     image: rush-api:latest
     container_name: gin-rush-go
     environment:
-      - ROLLBAR_TOKEN=${ROLLBAR_TOKEN}
-      - ROLLBAR_ENV_MODE=${ROLLBAR_ENV_MODE}
       - DB_HOST=gin-rush-mysql
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}

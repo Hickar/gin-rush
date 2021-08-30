@@ -1,12 +1,21 @@
 .DS_Store
 .vscode
 .idea
-logs
+
+# Environment files for docker
 *.env
 *.env.*
 !*.env.example
+
+# Vendor/logs
 vendor
-logs/*
+logs
+
+# Hashicorp's Vault
 vault
 vault-data
 *.hcl
+
+# Configuration files
+conf/config.*.json
+!conf/config.*.example.json

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/internal/validators"
@@ -30,7 +31,8 @@ func TestCreateUser(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/user", CreateUser)
 
-	mailer.Setup()
+	conf := config.GetConfig()
+	mailer.NewMailer(&conf.Gmail)
 	db, mock := database.NewMockDB()
 	defer db.Close()
 
@@ -530,7 +532,8 @@ func TestEnableUser(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
-	gin.SetMode(gin.TestMode)
+	conf := config.NewConfig("../../conf/config.test.json")
+	gin.SetMode(conf.Server.Mode)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		v.RegisterValidation("notblank", validators.NotBlank)

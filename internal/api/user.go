@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/database"
@@ -36,7 +37,7 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
+	db := database.DB()
 
 	exists, _ := db.Exists(&models.User{}, "email", input.Email)
 	if exists {
@@ -63,12 +64,14 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	token, err := security.GenerateJWT(user.ID)
+	conf := config.GetConfig()
+	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
 	if err != nil {
 		c.Status(http.StatusConflict)
 		return
 	}
 
+	mailer := mailer.GetMailer()
 	if err := mailer.SendConfirmationCode(user.Name, user.Email, user.ConfirmationCode); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
@@ -99,7 +102,7 @@ func AuthorizeUser(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
+	db := database.DB()
 
 	err := db.FindBy(&user, "email", input.Email)
 	if err != nil {
@@ -113,7 +116,8 @@ func AuthorizeUser(c *gin.Context) {
 		return
 	}
 
-	token, err := security.GenerateJWT(user.ID)
+	conf := config.GetConfig()
+	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
 	if err != nil {
 		c.Status(http.StatusConflict)
 		return
@@ -147,7 +151,7 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
+	db := database.DB()
 	authUserID := c.GetUint("user_id")
 	
 	if err := db.FindByID(&user, authUserID); err != nil {
@@ -207,7 +211,7 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
+	db := database.DB()
 	err = db.FindByID(&user, uint(userID))
 	if err != nil {
 		c.Status(http.StatusNotFound)
@@ -250,7 +254,7 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
+	db := database.DB()
 	if err = db.FindByID(&user, uint(userID)); err != nil {
 		c.Status(http.StatusNotFound)
 		return
@@ -282,7 +286,7 @@ func EnableUser(c *gin.Context) {
 		return
 	}
 
-	db := database.GetDB()
+	db := database.DB()
 
 	if err := db.FindBy(&user, "confirmation_code", code); err != nil {
 		c.Status(http.StatusNotFound)
@@ -295,7 +299,8 @@ func EnableUser(c *gin.Context) {
 		fmt.Println(err)
 	}
 
-	token, err := security.GenerateJWT(user.ID)
+	conf := config.GetConfig()
+	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return

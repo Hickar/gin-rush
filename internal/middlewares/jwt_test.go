@@ -6,12 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/gin-gonic/gin"
 )
 
 func TestJWT(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	conf := config.NewConfig("../../conf/config.dev.json")
 	r := gin.New()
 	r.Use(JWT())
 	r.GET("/endpoint", func(c *gin.Context) {
@@ -22,7 +24,7 @@ func TestJWT(t *testing.T) {
 		expectedCode := http.StatusUnauthorized
 
 		req, _ := http.NewRequest("GET", "/endpoint", nil)
-		req.Header.Set("Authorization", "Bearer invalidToken")
+		req.Header.Set(conf.Server.JWTHeader, "Bearer invalidToken")
 
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -34,7 +36,7 @@ func TestJWT(t *testing.T) {
 
 	t.Run("ValidToken", func(t *testing.T) {
 		expectedCode := http.StatusOK
-		token, _ := security.GenerateJWT(uint(0))
+		token, _ := security.GenerateJWT(uint(0), conf.Server.JWTSecret)
 
 		req, _ := http.NewRequest("GET", "/endpoint", nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))

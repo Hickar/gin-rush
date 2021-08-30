@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Hickar/gin-rush/internal/config"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -17,9 +18,14 @@ type Database struct {
 	db *gorm.DB
 }
 
-func New(user, pass, host, name string) (*Database, error) {
+func NewDB(conf *config.DatabaseConfig) (*Database, error) {
 	var err error
-	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true", user, pass, host, name)
+
+	if conf == nil {
+		return nil, errors.New("error during db setup: no conf provided")
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true", conf.User, conf.Password, conf.Host, conf.Name)
 	db, err := gorm.Open(mysql.Open(dsn))
 
 	if err != nil {
@@ -33,7 +39,7 @@ func New(user, pass, host, name string) (*Database, error) {
 func NewMockDB() (*Database, sqlmock.Sqlmock) {
 	dbm, mock, err := sqlmock.New()
 	if err != nil {
-		log.Fatalf("Unexpected error occured during creation of db mock: %s", err)
+		log.Fatalf("unexpected error occured during creation of db mock: %s", err)
 	}
 
 	db, err := gorm.Open(mysql.New(
@@ -52,14 +58,14 @@ func NewMockDB() (*Database, sqlmock.Sqlmock) {
 	return _db, mock
 }
 
-func GetDB() *Database {
+func DB() *Database {
 	return _db
 }
 
 func (d *Database) Close() error {
 	db, err := d.db.DB()
 	if err != nil {
-		log.Fatalf("Unexpected error during db closing: %s", err)
+		log.Fatalf("unexpected error during db closing: %s", err)
 	}
 
 	return db.Close()

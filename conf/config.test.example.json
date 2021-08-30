@@ -1,0 +1,37 @@
+{
+  "server": {
+    "mode": "test",
+    "port": 8080,
+    "debug": true,
+    "host_url": "http://127.0.0.1",
+    "api_url": "/api",
+    "jwt_secret": "secret_of_all_secrets",
+    "jwt_header": "AUTHORIZATION",
+    "jwt_bearer_prefix": "Bearer"
+  },
+  "gmail": {
+    "client_id": "gmail.client.id",
+    "client_secret": "gmail.client.secret",
+    "access_token": "gmail.access.token",
+    "refresh_token": "gmail.refresh.token",
+    "client_username": "example@gmail.com",
+    "client_password": "supir_sicrit_pasword",
+    "redirect_url": ""
+  },
+  "rollbar": {
+    "environment": "development",
+    "token": "rollbar.token",
+    "server_root": "github.com/Username/RepoName"
+  },
+  "database": {
+    "user": "user",
+    "password": "password",
+    "name": "db-name",
+    "host": "localhost"
+  },
+  "redis": {
+    "host": "",
+    "password": "",
+    "db": 0
+  }
+}

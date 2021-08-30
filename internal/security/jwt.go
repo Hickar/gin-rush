@@ -2,7 +2,6 @@ package security
 
 import (
 	"errors"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -13,8 +12,8 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-func GenerateJWT(userID uint) (string, error) {
-	signingKey := []byte(os.Getenv("JWT_SECRET"))
+func GenerateJWT(userID uint, secret string) (string, error) {
+	signingKey := []byte(secret)
 
 	claims := &Claims{
 		UserID:         userID,
@@ -34,8 +33,8 @@ func GenerateJWT(userID uint) (string, error) {
 	return ss, nil
 }
 
-func ParseJWT(tokenString string) (*Claims, error) {
-	signingKey := []byte(os.Getenv("JWT_SECRET"))
+func ParseJWT(tokenString, secret string) (*Claims, error) {
+	signingKey := []byte(secret)
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return signingKey, nil

@@ -2,7 +2,9 @@ package middlewares
 
 import (
 	"net/http"
+	"strings"
 
+	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/gin-gonic/gin"
 )
@@ -12,13 +14,14 @@ func JWT() gin.HandlerFunc {
 		var claims *security.Claims
 		var err error
 
+		conf := config.GetConfig().Server
 		code := http.StatusOK
-		token := trimJWTPrefix(c.GetHeader("AUTHORIZATION"))
+		token := trimJWTPrefix(conf.JWTBearerPrefix, c.GetHeader(conf.JWTHeader))
 
 		if token == "" {
 			code = http.StatusUnauthorized
 		} else {
-			claims, err = security.ParseJWT(token)
+			claims, err = security.ParseJWT(token, conf.JWTSecret)
 
 			if err != nil {
 				code = http.StatusUnauthorized
@@ -35,6 +38,6 @@ func JWT() gin.HandlerFunc {
 	}
 }
 
-func trimJWTPrefix(header string) string {
-	return header[7:]
+func trimJWTPrefix(prefix, header string) string {
+	return strings.Trim(header[len(prefix):], " ")
 }
