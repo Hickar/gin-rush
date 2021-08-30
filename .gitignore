@@ -18,4 +18,5 @@ vault-data
 
 # Configuration files
 conf/config.*.json
+conf/*.txt
 !conf/config.*.example.json
