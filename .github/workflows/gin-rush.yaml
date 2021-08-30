@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: go mod download
       - name: Copy configuration file
-        run: echo ${{ env.CONFIG_TEST }} >> ./conf/config.test.json
+        run: echo ${{ env.CONFIG_TEST }} > ./conf/config.test.json
         shell: bash
       - name: Run tests
         run: go test ./...
@@ -73,7 +73,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Copy configuration file
-        run: echo ${{ env.CONFIG_PROD }} >> ./conf/config.prod.json
+        run: echo ${{ env.CONFIG_PROD }} > ./conf/config.prod.json
         shell: bash
       - name: Run Docker-Compose
         run: docker-compose up -d
