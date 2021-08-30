@@ -13,7 +13,7 @@ import (
 
 func TestJWT(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	conf := config.NewConfig("../../conf/config.dev.json")
+	conf := config.NewConfig("../../conf/config.test.json")
 	r := gin.New()
 	r.Use(JWT())
 	r.GET("/endpoint", func(c *gin.Context) {
