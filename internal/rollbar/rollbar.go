@@ -7,7 +7,7 @@ import (
 	"github.com/rollbar/rollbar-go"
 )
 
-func New(conf *config.RollbarConfig) error {
+func NewRollbar(conf *config.RollbarConfig) error {
 	if conf == nil {
 		return errors.New("rollbar setup error: no configuration provided")
 	}

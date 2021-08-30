@@ -8,7 +8,7 @@ import (
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbar"
-	"github.com/Hickar/gin-rush/internal/routes"
+	"github.com/Hickar/gin-rush/internal/router"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/logger"
 	"github.com/Hickar/gin-rush/pkg/mailer"
@@ -37,7 +37,7 @@ import (
 func main() {
 	conf := config.NewConfig("./conf/config.dev.json")
 
-	if err := rollbar.New(&conf.Rollbar); err != nil {
+	if err := rollbar.NewRollbar(&conf.Rollbar); err != nil {
 		log.Fatalf("rollbar setup error: %s", err)
 	}
 
@@ -61,9 +61,9 @@ func main() {
 	}
 
 	gin.SetMode(conf.Server.Mode)
-	router := routes.Setup()
+	r := router.NewRouter(&conf.Server)
 
-	if err := router.Run(fmt.Sprintf(":%d", conf.Server.Port)); err != nil {
+	if err := r.Run(fmt.Sprintf(":%d", conf.Server.Port)); err != nil {
 		log.Fatalf("cannot start GIN server: %s", err)
 	}
 }

@@ -1,9 +1,10 @@
-package routes
+package router
 
 import (
 	"net/http"
 
 	"github.com/Hickar/gin-rush/internal/api"
+	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/middlewares"
 	"github.com/Hickar/gin-rush/internal/validators"
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func Setup() *gin.Engine {
+func NewRouter(conf *config.ServerConfig) *gin.Engine {
 	router := gin.New()
 
 	router.Use(gin.Logger())
@@ -30,14 +31,14 @@ func Setup() *gin.Engine {
 		c.String(http.StatusOK, "")
 	})
 
-	user := router.Group("/api")
+	user := router.Group(conf.ApiUrl)
 	{
 		user.POST("user", api.CreateUser)
 		user.POST("/authorize", api.AuthorizeUser)
 		user.GET("/authorize/email/challenge/:code", api.EnableUser)
 	}
 
-	authUser := router.Group("/api", middlewares.JWT())
+	authUser := router.Group(conf.ApiUrl, middlewares.JWT())
 	{
 		authUser.GET("user/:id", api.GetUser)
 		authUser.PATCH("user", api.UpdateUser)
