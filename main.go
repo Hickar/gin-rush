@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	_ "github.com/Hickar/gin-rush/docs"
+	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbar"
@@ -48,7 +50,12 @@ func main() {
 
 	db, err := database.NewDB(&conf.Database)
 	if err != nil {
-		log.Fatalf("database setup: %s", err)
+		log.Fatalf("database setup error: %s", err)
+	}
+
+	_, err = cache.NewCache(context.Background(), &conf.Redis)
+	if err != nil {
+		log.Fatalf("redis setup error: %s", err)
 	}
 
 	if err := db.AutoMigrate(&models.User{}); err != nil {

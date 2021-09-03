@@ -1,12 +1,15 @@
 package api
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
@@ -180,6 +183,13 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
+	cacheKey := fmt.Sprintf("users:%d", authUserID)
+	err = cache.GetCache().Del(c, cacheKey).Err()
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+
 	c.Status(http.StatusNoContent)
 }
 
@@ -198,6 +208,7 @@ func UpdateUser(c *gin.Context) {
 // @Security ApiKeyAuth
 func GetUser(c *gin.Context) {
 	var user models.User
+	var resp response.UpdateUserResponse
 
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
@@ -211,19 +222,40 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	db := database.DB()
-	err = db.FindByID(&user, uint(userID))
-	if err != nil {
-		c.Status(http.StatusNotFound)
-		return
+	cacheKey := fmt.Sprintf("users:%d", authUserID)
+	cached, err := cache.GetCache().Get(context.Background(), cacheKey).Result()
+	if cached != "" {
+		err := json.Unmarshal([]byte(cached), &resp)
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
+	} else {
+		db := database.DB()
+		err = db.FindByID(&user, uint(userID))
+		if err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		resp.Name = user.Name
+		resp.Bio = user.Bio.String
+		resp.Avatar = user.Avatar.String
+		resp.BirthDate = user.BirthDate.Time.String()
+
+		cacheData, err := json.Marshal(&resp)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		_, err = cache.GetCache().Set(context.Background(), cacheKey, cacheData, time.Duration(time.Hour * 168)).Result()
+		if err != nil {
+			c.Status(http.StatusInternalServerError)
+			return
+		}
 	}
 
-	c.JSON(http.StatusOK, response.UpdateUserResponse{
-		Name:      user.Name,
-		Bio:       user.Bio.String,
-		Avatar:    user.Avatar.String,
-		BirthDate: user.BirthDate.Time.String(),
-	})
+	c.JSON(http.StatusOK, resp)
 }
 
 // DeleteUser godoc
@@ -262,6 +294,13 @@ func DeleteUser(c *gin.Context) {
 
 	if err := db.Delete(&user); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
+		return
+	}
+
+	cacheKey := fmt.Sprintf("users:%d", authUserID)
+	err = cache.GetCache().Del(context.Background(), cacheKey).Err()
+	if err != nil {
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 

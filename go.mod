@@ -7,6 +7,7 @@ require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/gin-gonic/gin v1.7.2
 	github.com/go-playground/validator/v10 v10.8.0
+	github.com/go-redis/redis/v8 v8.11.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/json-iterator/go v1.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.13 // indirect
@@ -27,6 +28,8 @@ require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
+	github.com/cespare/xxhash/v2 v2.1.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.3 // indirect
 	github.com/go-openapi/jsonreference v0.19.4 // indirect
