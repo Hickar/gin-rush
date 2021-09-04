@@ -62,7 +62,7 @@ func main() {
 		log.Fatalf("models migration err: %s", err)
 	}
 
-	_, err = mailer.NewMailer(&conf.Gmail)
+	_, err = mailer.NewMailer("./conf/google_credentials.json")
 	if err != nil {
 		log.Fatalf("mailer setup error: %s", err)
 	}

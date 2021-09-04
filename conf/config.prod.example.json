@@ -9,15 +9,6 @@
     "jwt_header": "AUTHORIZATION",
     "jwt_bearer_prefix": "Bearer"
   },
-  "gmail": {
-    "client_id": "gmail.client.id",
-    "client_secret": "gmail.client.secret",
-    "access_token": "gmail.access.token",
-    "refresh_token": "gmail.refresh.token",
-    "client_username": "example@gmail.com",
-    "client_password": "supir_sicrit_pasword",
-    "redirect_url": "https://your.domain.io"
-  },
   "rollbar": {
     "environment": "production",
     "token": "rollbar.token",

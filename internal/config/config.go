@@ -11,7 +11,6 @@ var _config *Config
 
 type Config struct {
 	Server   ServerConfig   `json:"server"`
-	Gmail    GmailConfig    `json:"gmail"`
 	Rollbar  RollbarConfig  `json:"rollbar"`
 	Database DatabaseConfig `json:"database"`
 	Redis    RedisConfig    `json:"redis"`
@@ -26,16 +25,6 @@ type ServerConfig struct {
 	JWTSecret       string `json:"jwt_secret"`
 	JWTHeader       string `json:"jwt_header"`
 	JWTBearerPrefix string `json:"jwt_bearer_prefix"`
-}
-
-type GmailConfig struct {
-	ClientID       string `json:"client_id"`
-	ClientSecret   string `json:"client_secret"`
-	AccessToken    string `json:"access_token"`
-	RefreshToken   string `json:"refresh_token"`
-	ClientUsername string `json:"client_username"`
-	ClientPassword string `json:"client_password"`
-	RedirectUrl    string `json:"redirect_url"`
 }
 
 type RollbarConfig struct {

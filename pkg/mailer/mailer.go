@@ -3,42 +3,64 @@ package mailer
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
-	"time"
 
-	"github.com/Hickar/gin-rush/internal/config"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 )
 
 var _mailer *Mailer
 
+type Credentials struct {
+	ClientID     string   `json:"client_id"`
+	ClientSecret string   `json:"client_secret"`
+	RefreshToken string   `json:"refresh_token"`
+	RedirectURIs []string `json:"redirect_uris"`
+	AuthURI      string   `json:"auth_uri"`
+	TokenURI     string   `json:"token_uri"`
+}
+
 type Mailer struct {
 	GmailService *gmail.Service
 }
 
-func NewMailer(conf *config.GmailConfig) (*Mailer, error) {
-	oauthConf := oauth2.Config{
-		ClientID:     conf.ClientID,
-		ClientSecret: conf.ClientSecret,
-		Endpoint:     google.Endpoint,
-		RedirectURL:  conf.RedirectUrl,
+func NewMailer(credentialsPath string) (*Mailer, error) {
+	ctx := context.Background()
+
+	bytes, err := ioutil.ReadFile(credentialsPath)
+	if err != nil {
+		return nil, err
 	}
 
-	token := oauth2.Token{
-		AccessToken:  conf.AccessToken,
-		RefreshToken: conf.RefreshToken,
-		TokenType:    "BEARER",
-		Expiry:       time.Now(),
+	var credentials Credentials
+	err = json.Unmarshal(bytes, &credentials)
+	if err != nil {
+		return nil, err
 	}
 
-	tokenSource := oauthConf.TokenSource(context.Background(), &token)
+	config := oauth2.Config{
+		ClientID:     credentials.ClientID,
+		ClientSecret: credentials.ClientSecret,
+		Endpoint:     oauth2.Endpoint{
+			AuthURL: credentials.AuthURI,
+			TokenURL: credentials.TokenURI,
+		},
+		RedirectURL:  credentials.RedirectURIs[0],
+		Scopes:       []string{gmail.GmailSendScope},
+	}
 
-	srv, err := gmail.NewService(context.Background(), option.WithTokenSource(tokenSource))
+	tokenSource := config.TokenSource(ctx, &oauth2.Token{
+		RefreshToken: credentials.RefreshToken,
+	})
+
+	client := oauth2.NewClient(ctx, tokenSource)
+
+	srv, err := gmail.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +78,7 @@ func GetMailer() *Mailer {
 }
 
 func (m *Mailer) SendConfirmationCode(username, email, code string) error {
-	challengeLink := os.Getenv("API_HOST")+"/authorize/email/challenge/"+code
+	challengeLink := os.Getenv("API_HOST") + "/authorize/email/challenge/" + code
 	body := fmt.Sprintf("Hello <b>%s</b>!<br/>In order to verify your account, please proceed to following link: <a href=\"%s\">%s</a>", username, challengeLink, challengeLink)
 
 	return m.SendMail(email, "Account verification", body)
@@ -66,7 +88,7 @@ func (m *Mailer) SendMail(to, subject, body string) error {
 	var message gmail.Message
 
 	mime := "MIME-version: 1.0;\nContent-Type: text/html; charset=\"UTF-8\";\n\n"
-	msg := []byte("To: "+to+"\n"+"Subject: "+subject + "\n" + mime + body)
+	msg := []byte("To: " + to + "\n" + "Subject: " + subject + "\n" + mime + body)
 	message.Raw = base64.URLEncoding.EncodeToString(msg)
 
 	_, err := m.GmailService.Users.Messages.Send("me", &message).Do()

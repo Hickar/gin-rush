@@ -5,13 +5,14 @@ import (
 
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redismock/v8"
 )
 
 var _redisClient *redis.Client
 
 func NewCache(ctx context.Context, conf *config.RedisConfig) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
-		Addr:               ":6379",
+		Addr:               conf.Host,
 		Password:           conf.Password,
 		DB:                 conf.Db,
 	})
@@ -23,6 +24,13 @@ func NewCache(ctx context.Context, conf *config.RedisConfig) (*redis.Client, err
 
 	_redisClient = client
 	return _redisClient, nil
+}
+
+func NewCacheMock() (*redis.Client, redismock.ClientMock) {
+	var mock redismock.ClientMock
+
+	_redisClient, mock = redismock.NewClientMock()
+	return _redisClient, mock
 }
 
 func GetCache() *redis.Client {

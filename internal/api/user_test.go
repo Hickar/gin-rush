@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
@@ -24,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
+	"github.com/go-redis/redismock/v8"
 	"gorm.io/gorm"
 )
 
@@ -37,11 +39,11 @@ func TestCreateUser(t *testing.T) {
 	defer db.Close()
 
 	tests := []struct {
-		Name         string
-		BodyData     models.User
-		ExpectedCode int
-		MockSetup    func(mock sqlmock.Sqlmock, user models.User)
-		Msg          string
+		name         string
+		bodyData     models.User
+		expectedCode int
+		dbMockSetup  func(mock sqlmock.Sqlmock, user models.User)
+		msg          string
 	}{
 		{
 			"Success",
@@ -79,11 +81,11 @@ func TestCreateUser(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			bodyData, _ := json.Marshal(tt.BodyData)
+		t.Run(tt.name, func(t *testing.T) {
+			bodyData, _ := json.Marshal(tt.bodyData)
 			buf := bytes.NewBuffer(bodyData)
 
-			tt.MockSetup(mock, tt.BodyData)
+			tt.dbMockSetup(mock, tt.bodyData)
 
 			req, err := http.NewRequest("POST", "/api/user", buf)
 			req.Header.Set("Content-Type", "application/json")
@@ -95,8 +97,8 @@ func TestCreateUser(t *testing.T) {
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Returned code %d – %s", w.Code, tt.Msg)
+			if w.Code != tt.expectedCode {
+				t.Errorf("Returned code %d – %s", w.Code, tt.msg)
 			}
 
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -107,85 +109,85 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestAuthorizeUser(t *testing.T) {
-	_, mock := database.NewMockDB()
+	_, dbMock := database.NewMockDB()
 	r := gin.New()
 	r.POST("/api/authorize", AuthorizeUser)
 
 	tests := []struct {
-		Name           string
-		BodyData       request.AuthUserRequest
-		ActualPassword string
-		ExpectedCode   int
-		MockSetup      func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte)
-		Msg            string
+		name           string
+		bodyData       request.AuthUserRequest
+		actualPassword string
+		expectedCode   int
+		dbMockSetup    func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte)
+		msg            string
 	}{
 		{
-			Name:           "Success",
-			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
-			ActualPassword: "Pass/w0rd",
-			ExpectedCode:   http.StatusOK,
-			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
+			name:           "Success",
+			bodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
+			actualPassword: "Pass/w0rd",
+			expectedCode:   http.StatusOK,
+			dbMockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(0, time.Now(), time.Now(), sql.NullTime{}, "NewUser", email, actualPassword, salt, sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
 				mock.ExpectQuery(query).WithArgs(email).WillReturnRows(rows)
 			},
-			Msg: "Should return 200, user credentials are correct",
+			msg: "Should return 200, user credentials are correct",
 		},
 		{
-			Name:           "WrongPassword",
-			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
-			ActualPassword: "notGuessedPassword",
-			ExpectedCode:   http.StatusConflict,
-			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
+			name:           "WrongPassword",
+			bodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
+			actualPassword: "notGuessedPassword",
+			expectedCode:   http.StatusConflict,
+			dbMockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(0, time.Now(), time.Now(), sql.NullTime{}, "NewUser", email, actualPassword, salt, sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
 				mock.ExpectQuery(query).WithArgs(email).WillReturnRows(rows)
 			},
-			Msg: "Should return 409, user credentials are incorrect",
+			msg: "Should return 409, user credentials are incorrect",
 		},
 		{
-			Name:           "NotFound",
-			BodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
-			ActualPassword: "",
-			ExpectedCode:   http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
+			name:           "NotFound",
+			bodyData:       request.AuthUserRequest{Email: "dummy@email.io", Password: "Pass/w0rd"},
+			actualPassword: "",
+			expectedCode:   http.StatusNotFound,
+			dbMockSetup: func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(email).WillReturnError(gorm.ErrRecordNotFound)
 			},
-			Msg: "Should return 404, user doesn't exist",
+			msg: "Should return 404, user doesn't exist",
 		},
 		{
-			Name:           "Invalid",
-			BodyData:       request.AuthUserRequest{Email: "", Password: "Pass/w0rd"},
-			ActualPassword: "",
-			ExpectedCode:   http.StatusUnprocessableEntity,
-			MockSetup:      func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {},
-			Msg:            "Should return 422, user credentials are invalid",
+			name:           "Invalid",
+			bodyData:       request.AuthUserRequest{Email: "", Password: "Pass/w0rd"},
+			actualPassword: "",
+			expectedCode:   http.StatusUnprocessableEntity,
+			dbMockSetup:    func(mock sqlmock.Sqlmock, email string, actualPassword, salt []byte) {},
+			msg:            "Should return 422, user credentials are invalid",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			reqEnc, _ := json.Marshal(tt.BodyData)
+		t.Run(tt.name, func(t *testing.T) {
+			reqEnc, _ := json.Marshal(tt.bodyData)
 			reqByte := bytes.NewBuffer(reqEnc)
 
 			salt, _ := security.RandomBytes(16)
-			hashedPassword, _ := security.HashPassword(tt.ActualPassword, salt)
+			hashedPassword, _ := security.HashPassword(tt.actualPassword, salt)
 
-			tt.MockSetup(mock, tt.BodyData.Email, hashedPassword, salt)
+			tt.dbMockSetup(dbMock, tt.bodyData.Email, hashedPassword, salt)
 
 			req, _ := http.NewRequest("POST", "/api/authorize", reqByte)
 			w := httptest.NewRecorder()
 
 			r.ServeHTTP(w, req)
 
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Expected code %d, got %d instead", tt.ExpectedCode, w.Code)
+			if w.Code != tt.expectedCode {
+				t.Errorf("Expected code %d, got %d instead", tt.expectedCode, w.Code)
 			}
 
-			if err := mock.ExpectationsWereMet(); err != nil {
+			if err := dbMock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Some of DB query expectations were not met: %s", err)
 			}
 		})
@@ -200,7 +202,8 @@ func jwtMiddlewareMock(id uint) gin.HandlerFunc {
 }
 
 func TestUpdateUser(t *testing.T) {
-	_, mock := database.NewMockDB()
+	_, dbMock := database.NewMockDB()
+	_, redisMock := cache.NewCacheMock()
 	r := gin.New()
 
 	trueID := 42
@@ -209,21 +212,22 @@ func TestUpdateUser(t *testing.T) {
 	r.PATCH("/api/user", UpdateUser)
 
 	tests := []struct {
-		Name         string
-		BodyData     request.UpdateUserRequest
-		GuessID      int
-		ActualID     int
-		ExpectedCode int
-		MockSetup    func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int)
-		Msg          string
+		name         string
+		bodyData     request.UpdateUserRequest
+		guessID      int
+		actualID     int
+		expectedCode int
+		dbMockSetup  func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int)
+		redisMockSetup func(mock redismock.ClientMock, guessID int)
+		msg          string
 	}{
 		{
-			Name:         "Success",
-			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
-			GuessID:      trueID,
-			ActualID:     trueID,
-			ExpectedCode: http.StatusNoContent,
-			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
+			name:         "Success",
+			bodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
+			guessID:      trueID,
+			actualID:     trueID,
+			expectedCode: http.StatusNoContent,
+			dbMockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
@@ -236,62 +240,69 @@ func TestUpdateUser(t *testing.T) {
 				mock.ExpectExec(query).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), reqData.Name, "dummy@email.io", []byte("pass"), []byte("salt"), reqData.Bio, reqData.Avatar, formattedTime, false, "code", guessID).WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			Msg: "Should return 204, request was sent from same user it's must update",
+			redisMockSetup: func(mock redismock.ClientMock, guessID int) {
+				mock.ExpectDel(fmt.Sprintf("users:%d", guessID)).SetVal(1)
+			},
+			msg: "Should return 204, request was sent from same user it's must update",
 		},
 		{
-			Name:         "NotFound",
-			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
-			GuessID:      trueID,
-			ActualID:     trueID,
-			ExpectedCode: http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
+			name:         "NotFound",
+			bodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
+			guessID:      trueID,
+			actualID:     trueID,
+			expectedCode: http.StatusNotFound,
+			dbMockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
 			},
-			Msg: "Should return 404, user doesn't exist",
+			redisMockSetup: func(mock redismock.ClientMock, guessID int) {},
+			msg: "Should return 404, user doesn't exist",
 		},
 		{
-			Name:         "Forbidden",
-			BodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
-			GuessID:      trueID,
-			ActualID:     43,
-			ExpectedCode: http.StatusForbidden,
-			MockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
+			name:         "Forbidden",
+			bodyData:     request.UpdateUserRequest{Name: "NewUser2", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: "1989-04-19"},
+			guessID:      trueID,
+			actualID:     43,
+			expectedCode: http.StatusForbidden,
+			dbMockSetup: func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(actualID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
 			},
-			Msg: "Should return 403, request was made by other user",
+			redisMockSetup: func(mock redismock.ClientMock, guessID int) {},
+			msg: "Should return 403, request was made by other user",
 		},
 		{
-			Name:         "Invalid",
-			BodyData:     request.UpdateUserRequest{Name: "", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: ""},
-			GuessID:      trueID,
-			ActualID:     43,
-			ExpectedCode: http.StatusUnprocessableEntity,
-			MockSetup:    func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {},
-			Msg:          "Should return 422, user credentials are invalid",
+			name:         "Invalid",
+			bodyData:     request.UpdateUserRequest{Name: "", Bio: "Hi, it's info about me", Avatar: "https://some.img.service/myPhotoId", BirthDate: ""},
+			guessID:      trueID,
+			actualID:     43,
+			expectedCode: http.StatusUnprocessableEntity,
+			dbMockSetup:  func(mock sqlmock.Sqlmock, reqData request.UpdateUserRequest, guessID, actualID int) {},
+			redisMockSetup: func(mock redismock.ClientMock, guessID int) {},
+			msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			reqBody, _ := json.Marshal(tt.BodyData)
+		t.Run(tt.name, func(t *testing.T) {
+			reqBody, _ := json.Marshal(tt.bodyData)
 			reqBytes := bytes.NewBuffer(reqBody)
 
 			req, _ := http.NewRequest("PATCH", "/api/user", reqBytes)
 			w := httptest.NewRecorder()
 
-			tt.MockSetup(mock, tt.BodyData, tt.GuessID, tt.ActualID)
+			tt.dbMockSetup(dbMock, tt.bodyData, tt.guessID, tt.actualID)
+			tt.redisMockSetup(redisMock, tt.guessID)
 
 			r.ServeHTTP(w, req)
 
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			if w.Code != tt.expectedCode {
+				t.Errorf("Expected code %d, got %d", tt.expectedCode, w.Code)
 			}
 
-			if err := mock.ExpectationsWereMet(); err != nil {
+			if err := dbMock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Some of DB expectations were not met: %s", err)
 			}
 		})
@@ -299,7 +310,8 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestGetUser(t *testing.T) {
-	_, mock := database.NewMockDB()
+	_, dbMock := database.NewMockDB()
+	_, redisMock := redismock.NewClientMock()
 	r := gin.New()
 
 	trueID := 42
@@ -308,68 +320,74 @@ func TestGetUser(t *testing.T) {
 	r.GET("/api/user/:id", GetUser)
 
 	tests := []struct {
-		Name         string
-		GuessID      int
-		ActualID     interface{}
-		ExpectedCode interface{}
-		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID interface{})
-		Msg          string
+		name         string
+		guessID      int
+		actualID     interface{}
+		expectedCode interface{}
+		dbMockSetup  func(mock sqlmock.Sqlmock, guessID, actualID interface{})
+		redisMockSetup func(mock redismock.ClientMock, guessID interface{})
+		msg          string
 	}{
 		{
-			Name:         "Success",
-			GuessID:      trueID,
-			ActualID:     trueID,
-			ExpectedCode: http.StatusOK,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
+			name:         "Success",
+			guessID:      trueID,
+			actualID:     trueID,
+			expectedCode: http.StatusOK,
+			dbMockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
 			},
-			Msg: "Should return 200, request was sent from same user it's must update",
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {
+				cacheKey := fmt.Sprintf("users:%v", guessID)
+				mock.ExpectGet(cacheKey).RedisNil()
+				mock.ExpectSet(cacheKey, "\"name\":\"")
+			},
+			msg: "Should return 200, request was sent from same user it's must update",
 		},
 		{
-			Name:         "NotFound",
-			GuessID:      trueID,
-			ActualID:     trueID,
-			ExpectedCode: http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
+			name:         "NotFound",
+			guessID:      trueID,
+			actualID:     trueID,
+			expectedCode: http.StatusNotFound,
+			dbMockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
 			},
-			Msg: "Should return 404, user doesn't exist",
+			msg: "Should return 404, user doesn't exist",
 		},
 		{
-			Name:         "Forbidden",
-			GuessID:      trueID,
-			ActualID:     43,
-			ExpectedCode: http.StatusForbidden,
-			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg:          "Should return 403, request was made by other user",
+			name:         "Forbidden",
+			guessID:      trueID,
+			actualID:     43,
+			expectedCode: http.StatusForbidden,
+			dbMockSetup:  func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			msg:          "Should return 403, request was made by other user",
 		},
 		{
-			Name:         "Invalid",
-			GuessID:      trueID,
-			ActualID:     "notValidID",
-			ExpectedCode: http.StatusUnprocessableEntity,
-			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg:          "Should return 422, user credentials are invalid",
+			name:         "Invalid",
+			guessID:      trueID,
+			actualID:     "notValidID",
+			expectedCode: http.StatusUnprocessableEntity,
+			dbMockSetup:  func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			tt.MockSetup(mock, tt.GuessID, tt.ActualID)
+		t.Run(tt.name, func(t *testing.T) {
+			tt.dbMockSetup(dbMock, tt.guessID, tt.actualID)
 
-			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/user/%v", tt.ActualID), nil)
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/user/%v", tt.actualID), nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			if w.Code != tt.expectedCode {
+				t.Errorf("Expected code %d, got %d", tt.expectedCode, w.Code)
 			}
 
-			if err := mock.ExpectationsWereMet(); err != nil {
+			if err := dbMock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Some of DB expectations were not met: %s", err)
 			}
 		})
@@ -377,7 +395,8 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestDeleteUser(t *testing.T) {
-	_, mock := database.NewMockDB()
+	_, dbMock := database.NewMockDB()
+	_, redisMock := cache.NewCacheMock()
 	r := gin.New()
 
 	trueID := 42
@@ -386,19 +405,20 @@ func TestDeleteUser(t *testing.T) {
 	r.DELETE("/api/user/:id", DeleteUser)
 
 	tests := []struct {
-		Name         string
-		GuessID      interface{}
-		ActualID     interface{}
-		ExpectedCode int
-		MockSetup    func(mock sqlmock.Sqlmock, guessID, actualID interface{})
-		Msg          string
+		name         string
+		guessID      interface{}
+		actualID     interface{}
+		expectedCode int
+		dbMockSetup  func(mock sqlmock.Sqlmock, guessID, actualID interface{})
+		redisMockSetup func(mock redismock.ClientMock, guessID interface{})
+		msg          string
 	}{
 		{
-			Name:         "Success",
-			GuessID:      trueID,
-			ActualID:     trueID,
-			ExpectedCode: http.StatusNoContent,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
+			name:         "Success",
+			guessID:      trueID,
+			actualID:     trueID,
+			expectedCode: http.StatusNoContent,
+			dbMockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(guessID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, "code")
@@ -410,50 +430,57 @@ func TestDeleteUser(t *testing.T) {
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			Msg: "Should return 204, request was sent from same user it's must delete",
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {
+				mock.ExpectDel(fmt.Sprintf("users:%v", guessID))
+			},
+			msg: "Should return 204, request was sent from same user it's must delete",
 		},
 		{
-			Name:         "NotFound",
-			GuessID:      trueID,
-			ActualID:     trueID,
-			ExpectedCode: http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
+			name:         "NotFound",
+			guessID:      trueID,
+			actualID:     trueID,
+			expectedCode: http.StatusNotFound,
+			dbMockSetup: func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
 			},
-			Msg: "Should return 404, user doesn't exist",
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {},
+			msg: "Should return 404, user doesn't exist",
 		},
 		{
-			Name:         "Forbidden",
-			GuessID:      trueID,
-			ActualID:     43,
-			ExpectedCode: http.StatusForbidden,
-			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg:          "Should return 403, request was made by other user",
+			name:         "Forbidden",
+			guessID:      trueID,
+			actualID:     43,
+			expectedCode: http.StatusForbidden,
+			dbMockSetup:  func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {},
+			msg:          "Should return 403, request was made by other user",
 		},
 		{
-			Name:         "Invalid",
-			GuessID:      trueID,
-			ActualID:     "notValidID",
-			ExpectedCode: http.StatusUnprocessableEntity,
-			MockSetup:    func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
-			Msg:          "Should return 422, user credentials are invalid",
+			name:         "Invalid",
+			guessID:      trueID,
+			actualID:     "notValidID",
+			expectedCode: http.StatusUnprocessableEntity,
+			dbMockSetup:  func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {},
+			msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			tt.MockSetup(mock, tt.GuessID, tt.ActualID)
+		t.Run(tt.name, func(t *testing.T) {
+			tt.redisMockSetup(redisMock, tt.guessID)
+			tt.dbMockSetup(dbMock, tt.guessID, tt.actualID)
 
-			req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/user/%v", tt.ActualID), nil)
+			req, _ := http.NewRequest("DELETE", fmt.Sprintf("/api/user/%v", tt.actualID), nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			if w.Code != tt.expectedCode {
+				t.Errorf("Expected code %d, got %d", tt.expectedCode, w.Code)
 			}
 
-			if err := mock.ExpectationsWereMet(); err != nil {
+			if err := dbMock.ExpectationsWereMet(); err != nil {
 				t.Errorf("Some of DB expectations were not met: %s", err)
 			}
 		})
@@ -471,17 +498,17 @@ func TestEnableUser(t *testing.T) {
 	r.GET("/api/authorize/email/challenge/:code", EnableUser)
 
 	tests := []struct {
-		Name          string
-		ChallengeCode interface{}
-		ExpectedCode  int
-		MockSetup     func(mock sqlmock.Sqlmock, userID, code interface{})
-		Msg           string
+		name          string
+		challengeCode interface{}
+		expectedCode  int
+		dbMockSetup   func(mock sqlmock.Sqlmock, userID, code interface{})
+		msg           string
 	}{
 		{
-			Name:          "Success",
-			ChallengeCode: trueCode,
-			ExpectedCode:  http.StatusOK,
-			MockSetup: func(mock sqlmock.Sqlmock, userID, code interface{}) {
+			name:          "Success",
+			challengeCode: trueCode,
+			expectedCode:  http.StatusOK,
+			dbMockSetup: func(mock sqlmock.Sqlmock, userID, code interface{}) {
 				columns := []string{"id", "created_at", "updated_at", "deleted_at", "name", "email", "password", "salt", "bio", "avatar", "birth_date", "enabled", "confirmation_code"}
 				rows := sqlmock.NewRows(columns).AddRow(userID, time.Now(), time.Now(), sql.NullTime{}, "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, false, code)
 				mock.ExpectQuery("SELECT(.*)").WithArgs(code).WillReturnRows(rows)
@@ -491,37 +518,37 @@ func TestEnableUser(t *testing.T) {
 					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "NewUser", "dummy@email.io", []byte("pass"), []byte("salt"), sql.NullString{}, sql.NullString{}, sql.NullTime{}, true, code, userID).WillReturnResult(sqlmock.NewResult(1, 1))
 				mock.ExpectCommit()
 			},
-			Msg: "Should return 200, request was sent from same user it's must delete",
+			msg: "Should return 200, request was sent from same user it's must delete",
 		},
 		{
-			Name:          "NotFound",
-			ChallengeCode: trueCode,
-			ExpectedCode:  http.StatusNotFound,
-			MockSetup: func(mock sqlmock.Sqlmock, userID, code interface{}) {
+			name:          "NotFound",
+			challengeCode: trueCode,
+			expectedCode:  http.StatusNotFound,
+			dbMockSetup: func(mock sqlmock.Sqlmock, userID, code interface{}) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(code).WillReturnError(gorm.ErrRecordNotFound)
 			},
-			Msg: "Should return 404, user doesn't exist",
+			msg: "Should return 404, user doesn't exist",
 		},
 		{
-			Name:          "Invalid",
-			ChallengeCode: "invalidCode",
-			ExpectedCode:  http.StatusUnprocessableEntity,
-			MockSetup:     func(mock sqlmock.Sqlmock, userID, code interface{}) {},
-			Msg:           "Should return 422, verification code is invalid",
+			name:          "Invalid",
+			challengeCode: "invalidCode",
+			expectedCode:  http.StatusUnprocessableEntity,
+			dbMockSetup:   func(mock sqlmock.Sqlmock, userID, code interface{}) {},
+			msg:           "Should return 422, verification code is invalid",
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.Name, func(t *testing.T) {
-			tt.MockSetup(mock, userID, tt.ChallengeCode)
+		t.Run(tt.name, func(t *testing.T) {
+			tt.dbMockSetup(mock, userID, tt.challengeCode)
 
-			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/authorize/email/challenge/%v", tt.ChallengeCode), nil)
+			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/authorize/email/challenge/%v", tt.challengeCode), nil)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, req)
 
-			if w.Code != tt.ExpectedCode {
-				t.Errorf("Expected code %d, got %d", tt.ExpectedCode, w.Code)
+			if w.Code != tt.expectedCode {
+				t.Errorf("Expected code %d, got %d", tt.expectedCode, w.Code)
 			}
 
 			if err := mock.ExpectationsWereMet(); err != nil {

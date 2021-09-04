@@ -20,3 +20,4 @@ vault-data
 conf/config.*.json
 conf/*.txt
 !conf/config.*.example.json
+*credentials*.json

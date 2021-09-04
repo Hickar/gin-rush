@@ -76,7 +76,7 @@ func CreateUser(c *gin.Context) {
 
 	mailer := mailer.GetMailer()
 	if err := mailer.SendConfirmationCode(user.Name, user.Email, user.ConfirmationCode); err != nil {
-		c.Status(http.StatusUnprocessableEntity)
+		c.Status(http.StatusInternalServerError)
 		return
 	}
 
@@ -223,7 +223,7 @@ func GetUser(c *gin.Context) {
 	}
 
 	cacheKey := fmt.Sprintf("users:%d", authUserID)
-	cached, err := cache.GetCache().Get(context.Background(), cacheKey).Result()
+	cached, _ := cache.GetCache().Get(context.Background(), cacheKey).Result()
 	if cached != "" {
 		err := json.Unmarshal([]byte(cached), &resp)
 		if err != nil {
