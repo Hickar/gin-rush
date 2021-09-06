@@ -14,6 +14,10 @@ services:
       - DB_NAME=${DB_NAME}
     volumes:
       - ./logs:/logs
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
     ports:
       - "8080:8080"
     networks:
@@ -31,7 +35,7 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME}
     ports:
-      - "3307:3306"
+      - "3306:3306"
     volumes:
       - mysql-data:/var/lib/
     command: --default-authentication-plugin=mysql_native_password
@@ -51,10 +55,21 @@ services:
     networks:
       - internal
 
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: gin-rush-broker
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - broker-data:/var/lib/broker
+    networks:
+      - internal
 
 volumes:
   mysql-data:
   redis-data:
+  broker-data:
 
 networks:
   internal:

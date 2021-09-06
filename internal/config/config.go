@@ -14,6 +14,8 @@ type Config struct {
 	Rollbar  RollbarConfig  `json:"rollbar"`
 	Database DatabaseConfig `json:"database"`
 	Redis    RedisConfig    `json:"redis"`
+	RabbitMQ RabbitMQConfig `json:"rabbitmq"`
+	Gmail    GmailConfig    `json:"gmail"`
 }
 
 type ServerConfig struct {
@@ -37,13 +39,28 @@ type DatabaseConfig struct {
 	User     string `json:"user"`
 	Password string `json:"password"`
 	Name     string `json:"name"`
-	Host     string `json:"port"`
+	Host     string `json:"host"`
 }
 
 type RedisConfig struct {
 	Host     string `json:"host"`
 	Password string `json:"password"`
 	Db       int    `json:"db"`
+}
+
+type RabbitMQConfig struct {
+	Host     string `json:"host"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+}
+
+type GmailConfig struct {
+	ClientID     string   `json:"client_id"`
+	ClientSecret string   `json:"client_secret"`
+	RefreshToken string   `json:"refresh_token"`
+	RedirectURIs []string `json:"redirect_uris"`
+	AuthURI      string   `json:"auth_uri"`
+	TokenURI     string   `json:"token_uri"`
 }
 
 func NewConfig(filePath string) *Config {

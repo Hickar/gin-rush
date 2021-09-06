@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/Hickar/gin-rush/docs"
+	"github.com/Hickar/gin-rush/internal/broker"
 	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
@@ -13,7 +15,6 @@ import (
 	"github.com/Hickar/gin-rush/internal/router"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/logger"
-	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,7 +38,13 @@ import (
 // @name Authorization
 
 func main() {
-	conf := config.NewConfig("./conf/config.dev.json")
+	if len(os.Args) < 1 {
+		log.Fatalf("initialization error: no configuration file provided")
+	}
+
+	conf := config.NewConfig(os.Args[1])
+
+	fmt.Printf("db host: %v\nredis host: %v\nrabbitmq host: %v", conf.Database.Host, conf.Redis.Host, conf.RabbitMQ.Host)
 
 	if err := rollbar.NewRollbar(&conf.Rollbar); err != nil {
 		log.Fatalf("rollbar setup error: %s", err)
@@ -58,13 +65,13 @@ func main() {
 		log.Fatalf("redis setup error: %s", err)
 	}
 
-	if err := db.AutoMigrate(&models.User{}); err != nil {
-		log.Fatalf("models migration err: %s", err)
+	_, err = broker.NewBroker(&conf.RabbitMQ)
+	if err != nil {
+		log.Fatalf("rabbitmq setup error: %s", err)
 	}
 
-	_, err = mailer.NewMailer("./conf/google_credentials.json")
-	if err != nil {
-		log.Fatalf("mailer setup error: %s", err)
+	if err := db.AutoMigrate(&models.User{}); err != nil {
+		log.Fatalf("models migration err: %s", err)
 	}
 
 	gin.SetMode(conf.Server.Mode)

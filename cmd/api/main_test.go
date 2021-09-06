@@ -11,7 +11,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	conf := config.NewConfig("conf/config.test.json")
+	conf := config.NewConfig("../../conf/config.test.json")
 	router := router.NewRouter(&conf.Server)
 	database.NewMockDB()
 

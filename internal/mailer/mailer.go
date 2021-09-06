@@ -3,18 +3,23 @@ package mailer
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
+	"github.com/Hickar/gin-rush/internal/config"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/gmail/v1"
 	"google.golang.org/api/option"
 )
 
 var _mailer *Mailer
+
+type ConfirmationMessage struct {
+	Username string
+	Email    string
+	Code     string
+}
 
 type Credentials struct {
 	ClientID     string   `json:"client_id"`
@@ -29,33 +34,26 @@ type Mailer struct {
 	GmailService *gmail.Service
 }
 
-func NewMailer(credentialsPath string) (*Mailer, error) {
+func NewMailer(conf *config.GmailConfig) (*Mailer, error) {
+	if conf == nil {
+		return nil, errors.New("no mailer configuration was provided")
+	}
+
 	ctx := context.Background()
 
-	bytes, err := ioutil.ReadFile(credentialsPath)
-	if err != nil {
-		return nil, err
-	}
-
-	var credentials Credentials
-	err = json.Unmarshal(bytes, &credentials)
-	if err != nil {
-		return nil, err
-	}
-
-	config := oauth2.Config{
-		ClientID:     credentials.ClientID,
-		ClientSecret: credentials.ClientSecret,
-		Endpoint:     oauth2.Endpoint{
-			AuthURL: credentials.AuthURI,
-			TokenURL: credentials.TokenURI,
+	oauthConfig := oauth2.Config{
+		ClientID:     conf.ClientID,
+		ClientSecret: conf.ClientSecret,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  conf.AuthURI,
+			TokenURL: conf.TokenURI,
 		},
-		RedirectURL:  credentials.RedirectURIs[0],
-		Scopes:       []string{gmail.GmailSendScope},
+		RedirectURL: conf.RedirectURIs[0],
+		Scopes:      []string{gmail.GmailSendScope},
 	}
 
-	tokenSource := config.TokenSource(ctx, &oauth2.Token{
-		RefreshToken: credentials.RefreshToken,
+	tokenSource := oauthConfig.TokenSource(ctx, &oauth2.Token{
+		RefreshToken: conf.RefreshToken,
 	})
 
 	client := oauth2.NewClient(ctx, tokenSource)

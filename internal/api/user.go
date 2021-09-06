@@ -9,12 +9,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Hickar/gin-rush/internal/broker"
 	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
+	"github.com/Hickar/gin-rush/internal/mailer"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/database"
-	"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/Hickar/gin-rush/pkg/request"
 	"github.com/Hickar/gin-rush/pkg/response"
 	"github.com/Hickar/gin-rush/pkg/utils"
@@ -74,8 +75,14 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	mailer := mailer.GetMailer()
-	if err := mailer.SendConfirmationCode(user.Name, user.Email, user.ConfirmationCode); err != nil {
+	msg, _ := json.Marshal(&mailer.ConfirmationMessage{
+		Username: user.Name,
+		Email:    user.Email,
+		Code:     user.ConfirmationCode,
+	})
+
+	err = broker.GetBroker().Publish("mailer_ex", "mailer", "text/plain", &msg)
+	if err != nil {
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -248,7 +255,7 @@ func GetUser(c *gin.Context) {
 			fmt.Println(err)
 		}
 
-		_, err = cache.GetCache().Set(context.Background(), cacheKey, cacheData, time.Duration(time.Hour * 168)).Result()
+		_, err = cache.GetCache().Set(context.Background(), cacheKey, cacheData, time.Hour*168).Result()
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
 			return

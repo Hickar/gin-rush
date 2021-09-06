@@ -19,7 +19,9 @@ import (
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/internal/validators"
 	"github.com/Hickar/gin-rush/pkg/database"
-	"github.com/Hickar/gin-rush/pkg/mailer"
+	"github.com/Hickar/gin-rush/pkg/response"
+
+	//"github.com/Hickar/gin-rush/pkg/mailer"
 	"github.com/Hickar/gin-rush/pkg/request"
 	"github.com/Hickar/gin-rush/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -33,8 +35,8 @@ func TestCreateUser(t *testing.T) {
 	r := gin.New()
 	r.POST("/api/user", CreateUser)
 
-	conf := config.GetConfig()
-	mailer.NewMailer(&conf.Gmail)
+	//conf := config.GetConfig()
+	//mailer.NewMailer(&conf.Gmail)
 	db, mock := database.NewMockDB()
 	defer db.Close()
 
@@ -311,7 +313,7 @@ func TestUpdateUser(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	_, dbMock := database.NewMockDB()
-	_, redisMock := redismock.NewClientMock()
+	_, redisMock := cache.NewCacheMock()
 	r := gin.New()
 
 	trueID := 42
@@ -340,9 +342,16 @@ func TestGetUser(t *testing.T) {
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnRows(rows)
 			},
 			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {
+				resp := response.UpdateUserResponse{
+					Name:      "NewUser",
+					Bio:       "",
+					Avatar:    "",
+					BirthDate: "0001-01-01 00:00:00 +0000 UTC",
+				}
+				cacheData, _ := json.Marshal(&resp)
 				cacheKey := fmt.Sprintf("users:%v", guessID)
 				mock.ExpectGet(cacheKey).RedisNil()
-				mock.ExpectSet(cacheKey, "\"name\":\"")
+				mock.ExpectSet(cacheKey, cacheData, time.Duration(time.Hour * 168)).SetVal("")
 			},
 			msg: "Should return 200, request was sent from same user it's must update",
 		},
@@ -355,6 +364,10 @@ func TestGetUser(t *testing.T) {
 				query := "SELECT(.*)"
 				mock.ExpectQuery(query).WithArgs(guessID).WillReturnError(gorm.ErrRecordNotFound)
 			},
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {
+				cacheKey := fmt.Sprintf("users:%v", guessID)
+				mock.ExpectGet(cacheKey).RedisNil()
+			},
 			msg: "Should return 404, user doesn't exist",
 		},
 		{
@@ -363,6 +376,7 @@ func TestGetUser(t *testing.T) {
 			actualID:     43,
 			expectedCode: http.StatusForbidden,
 			dbMockSetup:  func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {},
 			msg:          "Should return 403, request was made by other user",
 		},
 		{
@@ -371,12 +385,14 @@ func TestGetUser(t *testing.T) {
 			actualID:     "notValidID",
 			expectedCode: http.StatusUnprocessableEntity,
 			dbMockSetup:  func(mock sqlmock.Sqlmock, guessID, actualID interface{}) {},
+			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {},
 			msg:          "Should return 422, user credentials are invalid",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.redisMockSetup(redisMock, tt.guessID)
 			tt.dbMockSetup(dbMock, tt.guessID, tt.actualID)
 
 			req, _ := http.NewRequest("GET", fmt.Sprintf("/api/user/%v", tt.actualID), nil)
@@ -431,7 +447,7 @@ func TestDeleteUser(t *testing.T) {
 				mock.ExpectCommit()
 			},
 			redisMockSetup: func(mock redismock.ClientMock, guessID interface{}) {
-				mock.ExpectDel(fmt.Sprintf("users:%v", guessID))
+				mock.ExpectDel(fmt.Sprintf("users:%v", guessID)).SetVal(1)
 			},
 			msg: "Should return 204, request was sent from same user it's must delete",
 		},

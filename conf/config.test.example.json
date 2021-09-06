@@ -18,11 +18,26 @@
     "user": "user",
     "password": "password",
     "name": "db-name",
-    "host": "localhost"
+    "host": "localhost:3306"
   },
   "redis": {
-    "host": "",
-    "password": "",
+    "host": "127.0.0.1:6379",
+    "password": "password",
     "db": 0
+  },
+  "rabbitmq": {
+    "host": "127.0.0.1:5672",
+    "user": "user",
+    "password": "password"
+  },
+  "gmail": {
+    "client_id": "client.id",
+    "client_secret": "client.secret",
+    "refresh_token": "refresh.token",
+    "redirect_uris": [
+      "https://developers.google.com/oauthplayground"
+    ],
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token"
   }
 }

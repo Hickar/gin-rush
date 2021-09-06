@@ -1,0 +1,20 @@
+FROM golang:1.17 AS build-env
+
+RUN go get github.com/go-delve/delve/cmd/dlv
+
+ADD . /dockerdev
+WORKDIR /dockerdev
+
+RUN go build -gcflags="all=-N -l" -o /server /dockerdev/cmd/api
+
+
+FROM debian:buster
+
+WORKDIR /
+
+COPY --from=build-env /go/bin/dlv /
+COPY --from=build-env /server /
+COPY --from=build-env /dockerdev/conf /conf
+
+EXPOSE 8000 40000
+CMD ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "--accept-multiclient", "exec", "/server", "/conf/config.prod.json"]
