@@ -7,17 +7,13 @@ services:
       dockerfile: ./docker/go-api/Dockerfile
     image: rush-api:latest
     container_name: gin-rush-go
-    environment:
-      - DB_HOST=gin-rush-mysql
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
     volumes:
       - ./logs:/logs
     depends_on:
       - db
       - redis
       - rabbitmq
+    restart: unless-stopped
     ports:
       - "8080:8080"
     networks:
@@ -45,31 +41,39 @@ services:
       - internal
 
   redis:
-    image: redis:latest
+    image: bitnami/redis:latest
     container_name: gin-rush-redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - redis-data:/bitnami/redis/data
     restart: always
     networks:
       - internal
 
   rabbitmq:
-    image: rabbitmq:latest
-    container_name: gin-rush-broker
+    build:
+      context: ./docker/rabbitmq
+      dockerfile: Dockerfile
+      args:
+        - RABBITMQ_USER=${RABBITMQ_USER}
+        - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+    image: rush-rabbitmq:latest
+    container_name: gin-rush-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
     volumes:
-      - broker-data:/var/lib/broker
+      - rabbitmq-data:/var/lib/rabbitmq
     networks:
       - internal
 
 volumes:
   mysql-data:
   redis-data:
-  broker-data:
+  rabbitmq-data:
 
 networks:
   internal:

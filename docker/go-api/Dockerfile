@@ -4,7 +4,6 @@ FROM golang:${GO_VERSION} AS build
 
 WORKDIR /app
 COPY . .
-#RUN go mod download
 
 RUN go build ./cmd/api
 RUN go build ./cmd/mailer

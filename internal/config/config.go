@@ -11,8 +11,8 @@ var _config *Config
 
 type Config struct {
 	Server   ServerConfig   `json:"server"`
-	Rollbar  RollbarConfig  `json:"rollbar"`
 	Database DatabaseConfig `json:"database"`
+	Rollbar  RollbarConfig  `json:"rollbar"`
 	Redis    RedisConfig    `json:"redis"`
 	RabbitMQ RabbitMQConfig `json:"rabbitmq"`
 	Gmail    GmailConfig    `json:"gmail"`

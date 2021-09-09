@@ -44,8 +44,6 @@ func main() {
 
 	conf := config.NewConfig(os.Args[1])
 
-	fmt.Printf("db host: %v\nredis host: %v\nrabbitmq host: %v", conf.Database.Host, conf.Redis.Host, conf.RabbitMQ.Host)
-
 	if err := rollbar.NewRollbar(&conf.Rollbar); err != nil {
 		log.Fatalf("rollbar setup error: %s", err)
 	}
