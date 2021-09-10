@@ -7,20 +7,9 @@ import (
 	"time"
 )
 
-var _logger *Logger
-
-type Logger struct {
-	logger     *log.Logger
-	flags      []string
-	logFormat  string
-	timeFormat string
-}
-
 var (
-	logger     *log.Logger
+	_logger *Logger
 	flags      = []string{"INFO", "WARNING", "ERROR"}
-	logFormat  string
-	timeFormat string
 )
 
 type Level int
@@ -31,13 +20,20 @@ const (
 	ERROR
 )
 
+type Logger struct {
+	logger     *log.Logger
+	flags      []string
+	logFormat  string
+	timeFormat string
+}
+
 func NewLogger(logFilePath string, logFormat string, timeFormat string) (*Logger, error) {
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
 
-	logger = log.New(logFile, "", 0)
+	logger := log.New(logFile, "", 0)
 	logger.SetFlags(0)
 
 	_logger = &Logger{
@@ -56,20 +52,20 @@ func GetLogger() *Logger {
 
 func (l *Logger) Info(message string) {
 	l.setLogPrefix(INFO)
-	l.logger.Printf(logFormat, time.Now().Format(timeFormat), message)
+	l.logger.Printf(l.logFormat, time.Now().Format(l.timeFormat), message)
 }
 
 func (l *Logger) Warning(message string) {
 	l.setLogPrefix(WARNING)
-	l.logger.Printf(logFormat, time.Now().Format(timeFormat), message)
+	l.logger.Printf(l.logFormat, time.Now().Format(l.timeFormat), message)
 }
 
-func (l *Logger) Error(message string) {
+func (l *Logger) Error(message error) {
 	l.setLogPrefix(ERROR)
-	l.logger.Printf(logFormat, time.Now().Format(timeFormat), message)
+	l.logger.Printf(l.logFormat, time.Now().Format(l.timeFormat), message.Error())
 }
 
 func (l Logger) setLogPrefix(level Level) {
 	prefix := flags[level]
-	l.logger.SetPrefix(fmt.Sprintf("[%s]", prefix))
+	l.logger.SetPrefix(fmt.Sprintf("[%s] ", prefix))
 }
