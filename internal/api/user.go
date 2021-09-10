@@ -16,6 +16,7 @@ import (
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/pkg/database"
+	"github.com/Hickar/gin-rush/pkg/logger"
 	"github.com/Hickar/gin-rush/pkg/request"
 	"github.com/Hickar/gin-rush/pkg/response"
 	"github.com/Hickar/gin-rush/pkg/utils"
@@ -64,6 +65,7 @@ func CreateUser(c *gin.Context) {
 
 	err = db.Create(&user)
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusConflict)
 		return
 	}
@@ -83,6 +85,7 @@ func CreateUser(c *gin.Context) {
 
 	err = broker.GetBroker().Publish("mailer_ex", "mailer", "text/plain", &msg)
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -116,6 +119,7 @@ func AuthorizeUser(c *gin.Context) {
 
 	err := db.FindBy(&user, "email", input.Email)
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -129,6 +133,7 @@ func AuthorizeUser(c *gin.Context) {
 	conf := config.GetConfig()
 	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusConflict)
 		return
 	}
@@ -165,6 +170,7 @@ func UpdateUser(c *gin.Context) {
 	authUserID := c.GetUint("user_id")
 	
 	if err := db.FindByID(&user, authUserID); err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -176,6 +182,7 @@ func UpdateUser(c *gin.Context) {
 
 	formattedTime, err := time.Parse("2006-01-02", input.BirthDate)
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
@@ -186,6 +193,7 @@ func UpdateUser(c *gin.Context) {
 	user.Avatar = sql.NullString{input.Avatar, true}
 
 	if err = db.Update(&user); err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
@@ -193,6 +201,7 @@ func UpdateUser(c *gin.Context) {
 	cacheKey := fmt.Sprintf("users:%d", authUserID)
 	err = cache.GetCache().Del(c, cacheKey).Err()
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -234,6 +243,7 @@ func GetUser(c *gin.Context) {
 	if cached != "" {
 		err := json.Unmarshal([]byte(cached), &resp)
 		if err != nil {
+			logger.GetLogger().Error(err)
 			c.Status(http.StatusInternalServerError)
 			return
 		}
@@ -241,6 +251,7 @@ func GetUser(c *gin.Context) {
 		db := database.DB()
 		err = db.FindByID(&user, uint(userID))
 		if err != nil {
+			logger.GetLogger().Error(err)
 			c.Status(http.StatusNotFound)
 			return
 		}
@@ -252,11 +263,12 @@ func GetUser(c *gin.Context) {
 
 		cacheData, err := json.Marshal(&resp)
 		if err != nil {
-			fmt.Println(err)
+			logger.GetLogger().Error(err)
 		}
 
 		_, err = cache.GetCache().Set(context.Background(), cacheKey, cacheData, time.Hour*168).Result()
 		if err != nil {
+			logger.GetLogger().Error(err)
 			c.Status(http.StatusInternalServerError)
 			return
 		}
@@ -295,11 +307,13 @@ func DeleteUser(c *gin.Context) {
 
 	db := database.DB()
 	if err = db.FindByID(&user, uint(userID)); err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusNotFound)
 		return
 	}
 
 	if err := db.Delete(&user); err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
@@ -307,6 +321,7 @@ func DeleteUser(c *gin.Context) {
 	cacheKey := fmt.Sprintf("users:%d", authUserID)
 	err = cache.GetCache().Del(context.Background(), cacheKey).Err()
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusInternalServerError)
 		return
 	}
@@ -335,6 +350,7 @@ func EnableUser(c *gin.Context) {
 	db := database.DB()
 
 	if err := db.FindBy(&user, "confirmation_code", code); err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusNotFound)
 		return
 	}
@@ -348,6 +364,7 @@ func EnableUser(c *gin.Context) {
 	conf := config.GetConfig()
 	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
 	if err != nil {
+		logger.GetLogger().Error(err)
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}

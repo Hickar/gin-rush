@@ -5,14 +5,11 @@ FROM golang:${GO_VERSION} AS build
 WORKDIR /app
 COPY . .
 
-RUN go build ./cmd/api
-RUN go build ./cmd/mailer
+RUN GOOS=linux CGO_ENABLED=0 go build ./cmd/api
 
-
-FROM gcr.io/distroless/base-debian10
+FROM alpine:latest
 
 COPY --from=build /app/conf /conf
 COPY --from=build /app/api /server
-COPY --from=build /app/mailer /mailer-worker
 
-ENTRYPOINT ["/server", "/conf/config.prod.json", "&&", "/mailer-worker", "/conf/config.prod.json"]
+ENTRYPOINT ["/server", "/conf/config.prod.json", "&", "/mailer-worker", "/conf/config.prod.json"]

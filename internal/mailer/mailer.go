@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 
 	"github.com/Hickar/gin-rush/internal/config"
 	"golang.org/x/oauth2"
@@ -76,7 +75,7 @@ func GetMailer() *Mailer {
 }
 
 func (m *Mailer) SendConfirmationCode(username, email, code string) error {
-	challengeLink := os.Getenv("API_HOST") + "/authorize/email/challenge/" + code
+	challengeLink := config.GetConfig().Server.HostUrl + "/authorize/email/challenge/" + code
 	body := fmt.Sprintf("Hello <b>%s</b>!<br/>In order to verify your account, please proceed to following link: <a href=\"%s\">%s</a>", username, challengeLink, challengeLink)
 
 	return m.SendMail(email, "Account verification", body)

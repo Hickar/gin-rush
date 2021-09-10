@@ -13,9 +13,19 @@ services:
       - db
       - redis
       - rabbitmq
+      - mailer
     restart: unless-stopped
     ports:
       - "8080:8080"
+    networks:
+      - internal
+
+  mailer:
+    build:
+      context: ./
+      dockerfile: ./docker/mailer/Dockerfile
+    image: rush-mailer:latest
+    container_name: gin-rush-mailer
     networks:
       - internal
 

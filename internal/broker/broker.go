@@ -11,7 +11,7 @@ var _broker *Broker
 
 type Broker struct {
 	conn *amqp.Connection
-	ch   *amqp.Channel
+	Ch   *amqp.Channel
 }
 
 func NewBroker(conf *config.RabbitMQConfig) (*Broker, error) {
@@ -28,7 +28,7 @@ func NewBroker(conf *config.RabbitMQConfig) (*Broker, error) {
 
 	_broker = &Broker{
 		conn: conn,
-		ch:   ch,
+		Ch:   ch,
 	}
 
 	return _broker, nil
@@ -39,7 +39,7 @@ func GetBroker() *Broker {
 }
 
 func (b *Broker) Publish(exchange, key, contentType string, body *[]byte) error {
-	err := b.ch.Publish(
+	err := b.Ch.Publish(
 		exchange,
 		key,
 		false,
@@ -57,7 +57,7 @@ func (b *Broker) Publish(exchange, key, contentType string, body *[]byte) error 
 }
 
 func (b *Broker) Consume(exchange, kind, key string) (<-chan amqp.Delivery, error) {
-	err := b.ch.ExchangeDeclare(
+	err := b.Ch.ExchangeDeclare(
 		exchange,
 		kind,
 		true,
@@ -70,17 +70,17 @@ func (b *Broker) Consume(exchange, kind, key string) (<-chan amqp.Delivery, erro
 		return nil, fmt.Errorf("failed to declare an exchange: %s", err)
 	}
 
-	q, err := b.ch.QueueDeclare("", true, false, false, false, nil)
+	q, err := b.Ch.QueueDeclare("", true, false, false, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to declare a queue: %s", err)
 	}
 
-	err = b.ch.QueueBind(q.Name, key, exchange, false, nil)
+	err = b.Ch.QueueBind(q.Name, key, exchange, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind a queue: %s", err)
 	}
 
-	messages, err := b.ch.Consume(
+	messages, err := b.Ch.Consume(
 		q.Name,
 		"",
 		false,
@@ -98,7 +98,7 @@ func (b *Broker) Consume(exchange, kind, key string) (<-chan amqp.Delivery, erro
 }
 
 func (b *Broker) Close() error {
-	err := b.ch.Close()
+	err := b.Ch.Close()
 	if err != nil {
 		return fmt.Errorf("unable to close channel: %s", err)
 	}
