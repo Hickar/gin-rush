@@ -26,6 +26,7 @@ require (
 require (
 	cloud.google.com/go v0.90.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
+	github.com/NeowayLabs/wabbit v0.0.0-20201021105516-ded4a9ef19d2 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect

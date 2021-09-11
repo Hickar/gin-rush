@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer func(conn *broker.Broker) {
+	defer func(conn broker.Broker) {
 		err := conn.Close()
 		if err != nil {
 			log.Fatal(err)

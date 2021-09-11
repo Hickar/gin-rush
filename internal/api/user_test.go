@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/Hickar/gin-rush/internal/broker"
 	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/security"
 	"github.com/Hickar/gin-rush/internal/validators"
 	"github.com/Hickar/gin-rush/pkg/database"
+	"github.com/Hickar/gin-rush/pkg/logger"
 	"github.com/Hickar/gin-rush/pkg/response"
 
 	//"github.com/Hickar/gin-rush/pkg/mailer"
@@ -576,6 +578,8 @@ func TestEnableUser(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	conf := config.NewConfig("../../conf/config.test.json")
+	broker.NewBrokerMock()
+	logger.NewLoggerMock()
 	gin.SetMode(conf.Server.Mode)
 
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
