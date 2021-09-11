@@ -5,7 +5,7 @@ RUN go get github.com/go-delve/delve/cmd/dlv
 ADD . /dockerdev
 WORKDIR /dockerdev
 
-RUN go build -gcflags="all=-N -l" -o /server /dockerdev/cmd/api
+RUN GOOS=linux CGO_ENABLED=0 go build -gcflags="all=-N -l" -o /server ./cmd/api
 
 
 FROM debian:buster

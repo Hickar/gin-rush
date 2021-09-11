@@ -24,9 +24,13 @@ require (
 )
 
 require (
+	github.com/go-redis/redismock/v8 v8.0.6
+	github.com/streadway/amqp v1.0.0
+)
+
+require (
 	cloud.google.com/go v0.90.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/NeowayLabs/wabbit v0.0.0-20201021105516-ded4a9ef19d2 // indirect
 	github.com/PuerkitoBio/purell v1.1.1 // indirect
 	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/cespare/xxhash/v2 v2.1.1 // indirect
@@ -38,7 +42,6 @@ require (
 	github.com/go-openapi/swag v0.19.11 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/go-redis/redismock/v8 v8.0.6 // indirect
 	github.com/go-sql-driver/mysql v1.6.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
@@ -49,7 +52,6 @@ require (
 	github.com/mailru/easyjson v0.0.0-20190626092158-b2ccc519800e // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
-	github.com/streadway/amqp v1.0.0 // indirect
 	github.com/ugorji/go/codec v1.2.6 // indirect
 	go.opencensus.io v0.23.0 // indirect
 	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 // indirect

@@ -82,7 +82,8 @@ func NewConfig(filePath string) *Config {
 
 	var config Config
 	if err := json.Unmarshal(byteValue, &config); err != nil {
-		log.Fatalf("config file unmarshalling error: %s", err)
+		currentPath, _ := os.Getwd()
+		log.Fatalf("config file unmarshalling error: %s\ncurrent wd: %s\nconfiguration path:%s", err, currentPath, filePath)
 	}
 
 	_config = &config

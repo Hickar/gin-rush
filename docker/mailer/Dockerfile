@@ -1,10 +1,11 @@
 ARG GO_VERSION=1.17
 
-FROM golang:${GO_VERSION} as build
+FROM golang:${GO_VERSION} AS build
 
 WORKDIR /app
 COPY . .
 
+RUN go mod download
 RUN GOOS=linux CGO_ENABLED=0 go build ./cmd/mailer
 
 FROM alpine:latest

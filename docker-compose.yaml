@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.9"
 
 services:
   go-api:
@@ -26,6 +26,9 @@ services:
       dockerfile: ./docker/mailer/Dockerfile
     image: rush-mailer:latest
     container_name: gin-rush-mailer
+    depends_on:
+      - rabbitmq
+    restart: always
     networks:
       - internal
 
@@ -77,6 +80,7 @@ services:
       - "15672:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+    restart: always
     networks:
       - internal
 

@@ -13,22 +13,17 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CONFIG_TEST: ${{ secrets.CONFIG_TEST }}
-      DB_ROOT_PASS: ${{ secrets.DB_ROOT_PASS }}
-      DB_HOST: db
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASS: ${{ secrets.DB_PASSWORD }}
-      DB_DATABASE: gin-rush
     steps:
       - name: Install Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.16.6'
+          go-version: '^1.16'
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Install dependencies
         run: go mod download
       - name: Retrieve test configuration file
-        run: echo ${{ env.CONFIG_TEST }} | base64 --decode > ./conf/config.test.json
+        run: echo "${{ env.CONFIG_TEST }}" | base64 --decode > ./conf/config.test.json
         shell: bash
       - name: Run tests
         run: go test ./...
@@ -57,6 +52,18 @@ jobs:
         run: |
           docker build ./docker/mysql/ -t ${{ env.DOCKER_USERNAME }}/gin-rush-mysql:latest
           docker push ${{ env.DOCKER_USERNAME }}/gin-rush-mysql:latest
+      - name: Build and push Redis
+        run: |
+          docker build ./docker/redis/ -t ${{ env.DOCKER_USERNAME }}/gin-rush-redis:latest
+          docker push ${{ env.DOCKER_USERNAME }}/gin-rush-redis:latest
+      - name: Build and push RabbitMQ
+        run: |
+          docker build ./docker/rabbitmq/ -t ${{ env.DOCKER_USERNAME }}/gin-rush-rabbitmq:latest
+          docker push ${{ env.DOCKER_USERNAME }}/gin-rush-rabbitmq:latest
+      - name: Build and push Mailer worker
+        run: |
+          docker build ./docker/mailer/ -t ${{ env.DOCKER_USERNAME }}/gin-rush-mailer:latest
+          docker push ${{ env.DOCKER_USERNAME }}/gin-rush-mailer:latest
   build:
     name: Docker environment run
     runs-on: ubuntu-latest
@@ -76,7 +83,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
       - name: Retrieve production configuration file
-        run: echo ${{ env.CONFIG_PROD }} | base64 --decode > ./conf/config.prod.json
+        run: echo "${{ env.CONFIG_PROD }}" | base64 --decode > > ./conf/config.prod.json
         shell: bash
       - name: Run Docker-Compose
         run: docker-compose up -d

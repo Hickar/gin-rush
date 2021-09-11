@@ -38,6 +38,7 @@ func CreateUser(c *gin.Context) {
 	var user models.User
 
 	if err := c.ShouldBindJSON(&input); err != nil {
+		fmt.Printf("err: %s", err.Error())
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}

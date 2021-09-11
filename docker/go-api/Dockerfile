@@ -12,4 +12,4 @@ FROM alpine:latest
 COPY --from=build /app/conf /conf
 COPY --from=build /app/api /server
 
-ENTRYPOINT ["/server", "/conf/config.prod.json", "&", "/mailer-worker", "/conf/config.prod.json"]
+ENTRYPOINT ["/server", "/conf/config.prod.json"]
