@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -12,11 +11,12 @@ import (
 	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
+	"github.com/Hickar/gin-rush/internal/repository"
 	"github.com/Hickar/gin-rush/internal/rollbar"
 	"github.com/Hickar/gin-rush/internal/router"
 	"github.com/Hickar/gin-rush/internal/usecase"
 	"github.com/Hickar/gin-rush/pkg/database"
-	"github.com/Hickar/gin-rush/pkg/logger"
+	appLog "github.com/Hickar/gin-rush/pkg/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -46,22 +46,23 @@ func main() {
 
 	conf := config.NewConfig(os.Args[1])
 
-	_, err := rollbar.NewRollbar(&conf.Rollbar);
+	// Services setup
+	_, err := rollbar.NewRollbar(&conf.Rollbar)
 	if err != nil {
 		log.Fatalf("rollbar setup error: %s", err)
 	}
 
-	logger, err := logger.NewLogger("./logs/log.log", "%s_%s", "2006-01-02")
+	logger, err := appLog.NewLogger("./logs/log.log", "%s_%s", "2006-01-02")
 	if err != nil {
 		log.Fatalf("logger setup error: %s", err)
 	}
 
-	db, err := database.NewDB(&conf.Database)
+	db, err := database.NewDatabase(&conf.Database, nil)
 	if err != nil {
 		log.Fatalf("database setup error: %s", err)
 	}
 
-	redis, err := cache.NewCache(context.Background(), &conf.Redis)
+	redis, err := cache.NewCache(&conf.Redis)
 	if err != nil {
 		log.Fatalf("redis setup error: %s", err)
 	}
@@ -75,7 +76,9 @@ func main() {
 		log.Fatalf("models migration err: %s", err)
 	}
 
-	userUseCase, err := usecase.NewUserUseCase(db, conf, br, redis)
+	//User usecase, repository and controller
+	userRepo := repository.NewUserRepository(db, redis)
+	userUseCase, err := usecase.NewUserUseCase(userRepo, conf, br, logger)
 	if err != nil {
 		log.Fatalf("cannot initialize UserUseCase type: %s", err)
 	}
@@ -83,7 +86,7 @@ func main() {
 	userController := api.NewUserController(userUseCase)
 
 	gin.SetMode(conf.Server.Mode)
-	r := router.NewUserRouter(userController , conf)
+	r := router.NewUserRouter(userController, conf)
 
 	if err := r.Run(fmt.Sprintf(":%d", conf.Server.Port)); err != nil {
 		log.Fatalf("cannot start GIN server: %s", err)

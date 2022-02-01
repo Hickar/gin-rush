@@ -13,6 +13,5 @@ func NewRollbar(conf *config.RollbarConfig) (*rollbar.Client, error) {
 	}
 
 	client := rollbar.New(conf.Token, conf.Environment, conf.Version, conf.ServerHost, conf.ServerRoot)
-
 	return client, nil
 }

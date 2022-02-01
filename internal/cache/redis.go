@@ -8,7 +8,9 @@ import (
 	"github.com/go-redis/redismock/v8"
 )
 
-func NewCache(ctx context.Context, conf *config.RedisConfig) (*redis.Client, error) {
+func NewCache(conf *config.RedisConfig) (*redis.Client, error) {
+	ctx := context.Background()
+
 	client := redis.NewClient(&redis.Options{
 		Addr:               conf.Host,
 		Password:           conf.Password,
