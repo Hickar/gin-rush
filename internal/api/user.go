@@ -1,27 +1,24 @@
 package api
 
 import (
-	"context"
-	"database/sql"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
-	"github.com/Hickar/gin-rush/internal/broker"
-	"github.com/Hickar/gin-rush/internal/cache"
-	"github.com/Hickar/gin-rush/internal/config"
-	"github.com/Hickar/gin-rush/internal/mailer"
-	"github.com/Hickar/gin-rush/internal/models"
-	"github.com/Hickar/gin-rush/internal/security"
-	"github.com/Hickar/gin-rush/pkg/database"
-	"github.com/Hickar/gin-rush/pkg/logger"
+	"github.com/Hickar/gin-rush/internal/usecase"
 	"github.com/Hickar/gin-rush/pkg/request"
 	"github.com/Hickar/gin-rush/pkg/response"
-	"github.com/Hickar/gin-rush/pkg/utils"
 	"github.com/gin-gonic/gin"
 )
+
+type UserController struct {
+	UserUseCase *usecase.UserUseCase
+}
+
+func NewUserController(useCase *usecase.UserUseCase) *UserController {
+	return  &UserController{UserUseCase: useCase}
+}
 
 // CreateUser godoc
 // @Summary Create new user
@@ -33,9 +30,8 @@ import (
 // @Failure 409
 // @Failure 422
 // @Router /user [post]
-func CreateUser(c *gin.Context) {
+func (uc *UserController) CreateUser(c *gin.Context) {
 	var input request.CreateUserRequest
-	var user models.User
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		fmt.Printf("err: %s", err.Error())
@@ -43,51 +39,14 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 
-	db := database.DB()
-
-	exists, _ := db.Exists(&models.User{}, "email", input.Email)
-	if exists {
-		c.Status(http.StatusConflict)
-		return
-	}
-
-	salt, _ := security.RandomBytes(16)
-	hashedPassword, err := security.HashPassword(input.Password, salt)
+	token, err := uc.UserUseCase.CreateUser(input.Email, input.Name, input.Password)
 	if err != nil {
-		c.Status(http.StatusConflict)
-		return
-	}
-
-	user.Name = input.Name
-	user.Email = input.Email
-	user.Password = hashedPassword
-	user.ConfirmationCode = utils.RandomString(30)
-	user.Salt = salt
-
-	err = db.Create(&user)
-	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusConflict)
-		return
-	}
-
-	conf := config.GetConfig()
-	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
-	if err != nil {
-		c.Status(http.StatusConflict)
-		return
-	}
-
-	msg, _ := json.Marshal(&mailer.ConfirmationMessage{
-		Username: user.Name,
-		Email:    user.Email,
-		Code:     user.ConfirmationCode,
-	})
-
-	err = broker.GetBroker().Publish("mailer_ex", "mailer", "text/plain", &msg)
-	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusInternalServerError)
+		switch {
+		case errors.Is(err, usecase.ErrUserExists):
+			c.Status(http.StatusConflict)
+		default:
+			c.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -107,35 +66,24 @@ func CreateUser(c *gin.Context) {
 // @Failure 404
 // @Failure 422
 // @Router /authorize [post]
-func AuthorizeUser(c *gin.Context) {
+func (uc *UserController) AuthorizeUser(c *gin.Context) {
 	var input request.AuthUserRequest
-	var user models.User
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
-	db := database.DB()
-
-	err := db.FindBy(&user, "email", input.Email)
+	token, err := uc.UserUseCase.AuthorizeUser(input.Email, input.Password)
 	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	valid := security.VerifyPassword(input.Password, user.Password, user.Salt);
-	if !valid {
-		c.Status(http.StatusConflict)
-		return
-	}
-
-	conf := config.GetConfig()
-	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
-	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusConflict)
+		switch {
+		case errors.Is(err, usecase.ErrUserNotFound):
+			c.Status(http.StatusNotFound)
+		case errors.Is(err, usecase.ErrInvalidPassword):
+			c.Status(http.StatusConflict)
+		default:
+			c.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -158,52 +106,26 @@ func AuthorizeUser(c *gin.Context) {
 // @Failure 422
 // @Security ApiKeyAuth
 // @Router /user [patch]
-func UpdateUser(c *gin.Context) {
+func (uc *UserController) UpdateUser(c *gin.Context) {
 	var input request.UpdateUserRequest
-	var user models.User
 
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.Status(http.StatusUnprocessableEntity)
 		return
 	}
 
-	db := database.DB()
 	authUserID := c.GetUint("user_id")
-	
-	if err := db.FindByID(&user, authUserID); err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	if authUserID != user.ID {
-		c.Status(http.StatusForbidden)
-		return
-	}
-
-	formattedTime, err := time.Parse("2006-01-02", input.BirthDate)
-	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusUnprocessableEntity)
-		return
-	}
-
-	user.Name = input.Name
-	user.Bio = sql.NullString{input.Bio, true}
-	user.BirthDate = sql.NullTime{formattedTime, true}
-	user.Avatar = sql.NullString{input.Avatar, true}
-
-	if err = db.Update(&user); err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusUnprocessableEntity)
-		return
-	}
-
-	cacheKey := fmt.Sprintf("users:%d", authUserID)
-	err = cache.GetCache().Del(c, cacheKey).Err()
-	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusInternalServerError)
+	if err := uc.UserUseCase.UpdateUser(input, authUserID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrUserNotFound):
+			c.Status(http.StatusNotFound)
+		case errors.Is(err, usecase.ErrUnprocessableEntity):
+			c.Status(http.StatusUnprocessableEntity)
+		case errors.Is(err, usecase.ErrUserForbidden):
+			c.Status(http.StatusForbidden)
+		default:
+			c.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -223,10 +145,7 @@ func UpdateUser(c *gin.Context) {
 // @Failure 422
 // @Router /user/{id} [get]
 // @Security ApiKeyAuth
-func GetUser(c *gin.Context) {
-	var user models.User
-	var resp response.UpdateUserResponse
-
+func (uc *UserController) GetUser(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
@@ -239,43 +158,18 @@ func GetUser(c *gin.Context) {
 		return
 	}
 
-	cacheKey := fmt.Sprintf("users:%d", authUserID)
-	cached, _ := cache.GetCache().Get(context.Background(), cacheKey).Result()
-	if cached != "" {
-		err := json.Unmarshal([]byte(cached), &resp)
-		if err != nil {
-			logger.GetLogger().Error(err)
-			c.Status(http.StatusInternalServerError)
-			return
-		}
-	} else {
-		db := database.DB()
-		err = db.FindByID(&user, uint(userID))
-		if err != nil {
-			logger.GetLogger().Error(err)
+	userResp, err := uc.UserUseCase.GetUser(authUserID)
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrUserNotFound):
 			c.Status(http.StatusNotFound)
-			return
-		}
-
-		resp.Name = user.Name
-		resp.Bio = user.Bio.String
-		resp.Avatar = user.Avatar.String
-		resp.BirthDate = user.BirthDate.Time.String()
-
-		cacheData, err := json.Marshal(&resp)
-		if err != nil {
-			logger.GetLogger().Error(err)
-		}
-
-		_, err = cache.GetCache().Set(context.Background(), cacheKey, cacheData, time.Hour*168).Result()
-		if err != nil {
-			logger.GetLogger().Error(err)
+		default:
 			c.Status(http.StatusInternalServerError)
-			return
 		}
+		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, userResp)
 }
 
 // DeleteUser godoc
@@ -291,9 +185,7 @@ func GetUser(c *gin.Context) {
 // @Failure 422
 // @Security ApiKeyAuth
 // @Router /user/{id} [delete]
-func DeleteUser(c *gin.Context) {
-	var user models.User
-
+func (uc *UserController) DeleteUser(c *gin.Context) {
 	userID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.Status(http.StatusUnprocessableEntity)
@@ -306,24 +198,13 @@ func DeleteUser(c *gin.Context) {
 		return
 	}
 
-	db := database.DB()
-	if err = db.FindByID(&user, uint(userID)); err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	if err := db.Delete(&user); err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusUnprocessableEntity)
-		return
-	}
-
-	cacheKey := fmt.Sprintf("users:%d", authUserID)
-	err = cache.GetCache().Del(context.Background(), cacheKey).Err()
-	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusInternalServerError)
+	if err := uc.UserUseCase.DeleteUser(authUserID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrUserNotFound):
+			c.Status(http.StatusNotFound)
+		default:
+			c.Status(http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -339,34 +220,17 @@ func DeleteUser(c *gin.Context) {
 // @Failure 404
 // @Failure 422
 // @Router /authorize/email/challenge/{code} [get]
-func EnableUser(c *gin.Context) {
-	var user models.User
+func (uc *UserController) EnableUser(c *gin.Context) {
 	code := c.Param("code")
 
-	if len(code) != 30 {
-		c.Status(http.StatusUnprocessableEntity)
-		return
-	}
-
-	db := database.DB()
-
-	if err := db.FindBy(&user, "confirmation_code", code); err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusNotFound)
-		return
-	}
-
-	if !user.Enabled {
-		user.Enabled = true
-		err := db.Update(&user)
-		fmt.Println(err)
-	}
-
-	conf := config.GetConfig()
-	token, err := security.GenerateJWT(user.ID, conf.Server.JWTSecret)
+	token, err := uc.UserUseCase.EnableUser(code)
 	if err != nil {
-		logger.GetLogger().Error(err)
-		c.Status(http.StatusUnprocessableEntity)
+		switch {
+		case errors.Is(err, usecase.ErrUserNotFound):
+			c.Status(http.StatusNotFound)
+		case errors.Is(err, usecase.ErrUnprocessableEntity):
+			c.Status(http.StatusUnprocessableEntity)
+		}
 		return
 	}
 

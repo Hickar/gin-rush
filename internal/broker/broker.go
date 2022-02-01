@@ -7,20 +7,18 @@ import (
 	"github.com/streadway/amqp"
 )
 
-var _broker Broker
-
 type Broker interface {
 	Publish(string, string, string, *[]byte) error
 	Consume(string, string, string) (<-chan amqp.Delivery, error)
 	Close() error
 }
 
-type broker struct {
+type RabbitMQBroker struct {
 	conn *amqp.Connection
 	ch   *amqp.Channel
 }
 
-func NewBroker(conf *config.RabbitMQConfig) (Broker, error) {
+func NewBroker(conf *config.RabbitMQConfig) (*RabbitMQBroker, error) {
 	url := fmt.Sprintf("amqp://%s:%s@%s/", conf.User, conf.Password, conf.Host)
 	conn, err := amqp.Dial(url)
 	if err != nil {
@@ -32,19 +30,10 @@ func NewBroker(conf *config.RabbitMQConfig) (Broker, error) {
 		return nil, fmt.Errorf("failed to open a channel: %w", err)
 	}
 
-	_broker = &broker{
-		conn: conn,
-		ch:   ch,
-	}
-
-	return _broker, nil
+	return &RabbitMQBroker{conn: conn, ch: ch}, nil
 }
 
-func GetBroker() Broker {
-	return _broker
-}
-
-func (b *broker) Publish(exchange, key, contentType string, body *[]byte) error {
+func (b *RabbitMQBroker) Publish(exchange, key, contentType string, body *[]byte) error {
 	err := b.ch.Publish(
 		exchange,
 		key,
@@ -62,7 +51,7 @@ func (b *broker) Publish(exchange, key, contentType string, body *[]byte) error 
 	return nil
 }
 
-func (b *broker) Consume(exchange, kind, key string) (<-chan amqp.Delivery, error) {
+func (b *RabbitMQBroker) Consume(exchange, kind, key string) (<-chan amqp.Delivery, error) {
 	err := b.ch.ExchangeDeclare(
 		exchange,
 		kind,
@@ -103,7 +92,7 @@ func (b *broker) Consume(exchange, kind, key string) (<-chan amqp.Delivery, erro
 	return messages, nil
 }
 
-func (b *broker) Close() error {
+func (b *RabbitMQBroker) Close() error {
 	err := b.ch.Close()
 	if err != nil {
 		return fmt.Errorf("unable to close channel: %w", err)

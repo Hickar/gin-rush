@@ -12,7 +12,7 @@ import (
 
 func TestServer(t *testing.T) {
 	conf := config.NewConfig("../../conf/config.test.json")
-	router := router.NewRouter(&conf.Server)
+	router := router.NewUserRouter(&conf.Server)
 	database.NewMockDB()
 
 	w := httptest.NewRecorder()

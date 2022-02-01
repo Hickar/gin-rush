@@ -7,12 +7,14 @@ import (
 	"os"
 
 	_ "github.com/Hickar/gin-rush/docs"
+	"github.com/Hickar/gin-rush/internal/api"
 	"github.com/Hickar/gin-rush/internal/broker"
 	"github.com/Hickar/gin-rush/internal/cache"
 	"github.com/Hickar/gin-rush/internal/config"
 	"github.com/Hickar/gin-rush/internal/models"
 	"github.com/Hickar/gin-rush/internal/rollbar"
 	"github.com/Hickar/gin-rush/internal/router"
+	"github.com/Hickar/gin-rush/internal/usecase"
 	"github.com/Hickar/gin-rush/pkg/database"
 	"github.com/Hickar/gin-rush/pkg/logger"
 	"github.com/gin-gonic/gin"
@@ -58,12 +60,12 @@ func main() {
 		log.Fatalf("database setup error: %s", err)
 	}
 
-	_, err = cache.NewCache(context.Background(), &conf.Redis)
+	redis, err := cache.NewCache(context.Background(), &conf.Redis)
 	if err != nil {
 		log.Fatalf("redis setup error: %s", err)
 	}
 
-	_, err = broker.NewBroker(&conf.RabbitMQ)
+	br, err := broker.NewBroker(&conf.RabbitMQ)
 	if err != nil {
 		log.Fatalf("rabbitmq setup error: %s", err)
 	}
@@ -72,8 +74,11 @@ func main() {
 		log.Fatalf("models migration err: %s", err)
 	}
 
+	userUseCase, _ := usecase.NewUserUseCase(db, conf, br, redis)
+	userController := api.NewUserController(userUseCase)
+
 	gin.SetMode(conf.Server.Mode)
-	r := router.NewRouter(&conf.Server)
+	r := router.NewUserRouter(userController , conf)
 
 	if err := r.Run(fmt.Sprintf(":%d", conf.Server.Port)); err != nil {
 		log.Fatalf("cannot start GIN server: %s", err)

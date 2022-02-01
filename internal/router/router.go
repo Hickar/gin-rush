@@ -14,7 +14,7 @@ import (
 	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
-func NewRouter(conf *config.ServerConfig) *gin.Engine {
+func NewUserRouter(controller *api.UserController, conf *config.Config) *gin.Engine {
 	router := gin.New()
 
 	router.Use(gin.Logger())
@@ -31,18 +31,18 @@ func NewRouter(conf *config.ServerConfig) *gin.Engine {
 		c.String(http.StatusOK, "")
 	})
 
-	user := router.Group(conf.ApiUrl)
+	user := router.Group(conf.Server.ApiUrl)
 	{
-		user.POST("user", api.CreateUser)
-		user.POST("/authorize", api.AuthorizeUser)
-		user.GET("/authorize/email/challenge/:code", api.EnableUser)
+		user.POST("user", controller.CreateUser)
+		user.POST("/authorize", controller.AuthorizeUser)
+		user.GET("/authorize/email/challenge/:code", controller.EnableUser)
 	}
 
-	authUser := router.Group(conf.ApiUrl, middlewares.JWT())
+	authUser := router.Group(conf.Server.ApiUrl, middlewares.JWT())
 	{
-		authUser.GET("user/:id", api.GetUser)
-		authUser.PATCH("user", api.UpdateUser)
-		authUser.DELETE("user/:id", api.DeleteUser)
+		authUser.GET("user/:id", controller.GetUser)
+		authUser.PATCH("user", controller.UpdateUser)
+		authUser.DELETE("user/:id", controller.DeleteUser)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

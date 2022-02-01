@@ -32,7 +32,3 @@ func NewCacheMock() (*redis.Client, redismock.ClientMock) {
 	_redisClient, mock = redismock.NewClientMock()
 	return _redisClient, mock
 }
-
-func GetCache() *redis.Client {
-	return _redisClient
-}
