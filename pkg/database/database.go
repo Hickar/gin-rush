@@ -12,13 +12,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var _db *Database
-
-type Database struct {
-	db *gorm.DB
-}
-
-func NewDB(conf *config.DatabaseConfig) (*Database, error) {
+func NewDB(conf *config.DatabaseConfig) (*gorm.DB, error) {
 	var err error
 
 	if conf == nil {
@@ -26,14 +20,15 @@ func NewDB(conf *config.DatabaseConfig) (*Database, error) {
 	}
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true", conf.User, conf.Password, conf.Host, conf.Name)
-	db, err := gorm.Open(mysql.Open(dsn))
 
+	db, err := gorm.Open(mysql.Open(dsn))
 	if err != nil {
 		return nil, err
 	}
 
-	_db = &Database{db: db}
-	return _db, nil
+
+
+	return db, nil
 }
 
 func NewMockDB() (*Database, sqlmock.Sqlmock) {
@@ -56,10 +51,6 @@ func NewMockDB() (*Database, sqlmock.Sqlmock) {
 
 	_db = &Database{db: db}
 	return _db, mock
-}
-
-func DB() *Database {
-	return _db
 }
 
 func (d *Database) Close() error {

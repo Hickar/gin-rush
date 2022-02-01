@@ -5,7 +5,7 @@ import (
 
 	"github.com/Hickar/gin-rush/internal/api"
 	"github.com/Hickar/gin-rush/internal/config"
-	"github.com/Hickar/gin-rush/internal/middlewares"
+	"github.com/Hickar/gin-rush/internal/middleware"
 	"github.com/Hickar/gin-rush/internal/validators"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -38,7 +38,7 @@ func NewUserRouter(controller *api.UserController, conf *config.Config) *gin.Eng
 		user.GET("/authorize/email/challenge/:code", controller.EnableUser)
 	}
 
-	authUser := router.Group(conf.Server.ApiUrl, middlewares.JWT())
+	authUser := router.Group(conf.Server.ApiUrl, middleware.JWT())
 	{
 		authUser.GET("user/:id", controller.GetUser)
 		authUser.PATCH("user", controller.UpdateUser)

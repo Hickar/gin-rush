@@ -93,13 +93,11 @@ func (b *RabbitMQBroker) Consume(exchange, kind, key string) (<-chan amqp.Delive
 }
 
 func (b *RabbitMQBroker) Close() error {
-	err := b.ch.Close()
-	if err != nil {
+	if err := b.ch.Close(); err != nil {
 		return fmt.Errorf("unable to close channel: %w", err)
 	}
 
-	err = b.conn.Close()
-	if err != nil {
+	if err := b.conn.Close(); err != nil {
 		return fmt.Errorf("unable to close connection: %w", err)
 	}
 

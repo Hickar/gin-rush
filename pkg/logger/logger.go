@@ -8,7 +8,6 @@ import (
 )
 
 var (
-	_logger Logger
 	flags   = []string{"INFO", "WARNING", "ERROR"}
 )
 
@@ -42,18 +41,14 @@ func NewLogger(logFilePath string, logFormat string, timeFormat string) (Logger,
 	newLogger := log.New(logFile, "", 0)
 	newLogger.SetFlags(0)
 
-	_logger = &logger{
+	logger := &logger{
 		logger:     newLogger,
 		flags:      []string{"INFO", "WARNING", "ERROR"},
 		logFormat:  logFormat,
 		timeFormat: timeFormat,
 	}
 
-	return _logger, nil
-}
-
-func GetLogger() Logger {
-	return _logger
+	return logger, nil
 }
 
 func (l *logger) Info(message string) {

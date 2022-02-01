@@ -33,6 +33,8 @@ type RollbarConfig struct {
 	Environment string `json:"environment"`
 	Token       string `json:"token"`
 	ServerRoot  string `json:"server_root"`
+	ServerHost  string `json:"server_host"`
+	Version     string `json:"version"`
 }
 
 type DatabaseConfig struct {

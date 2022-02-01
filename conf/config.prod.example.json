@@ -12,7 +12,9 @@
   "rollbar": {
     "environment": "production",
     "token": "rollbar.token",
-    "server_root": "github.com/Username/RepoName"
+    "server_root": "github.com/Username/RepoName",
+    "server_host": "web.1",
+    "version": "v2"
   },
   "database": {
     "user": "user",

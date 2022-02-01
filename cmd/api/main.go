@@ -46,11 +46,12 @@ func main() {
 
 	conf := config.NewConfig(os.Args[1])
 
-	if err := rollbar.NewRollbar(&conf.Rollbar); err != nil {
+	_, err := rollbar.NewRollbar(&conf.Rollbar);
+	if err != nil {
 		log.Fatalf("rollbar setup error: %s", err)
 	}
 
-	_, err := logger.NewLogger("./logs/log.log", "%s_%s", "2006-01-02")
+	logger, err := logger.NewLogger("./logs/log.log", "%s_%s", "2006-01-02")
 	if err != nil {
 		log.Fatalf("logger setup error: %s", err)
 	}
@@ -74,7 +75,11 @@ func main() {
 		log.Fatalf("models migration err: %s", err)
 	}
 
-	userUseCase, _ := usecase.NewUserUseCase(db, conf, br, redis)
+	userUseCase, err := usecase.NewUserUseCase(db, conf, br, redis)
+	if err != nil {
+		log.Fatalf("cannot initialize UserUseCase type: %s", err)
+	}
+
 	userController := api.NewUserController(userUseCase)
 
 	gin.SetMode(conf.Server.Mode)

@@ -7,18 +7,12 @@ import (
 	"github.com/rollbar/rollbar-go"
 )
 
-func NewRollbar(conf *config.RollbarConfig) error {
+func NewRollbar(conf *config.RollbarConfig) (*rollbar.Client, error) {
 	if conf == nil {
-		return errors.New("rollbar setup error: no configuration provided")
+		return nil, errors.New("rollbar setup error: no configuration provided")
 	}
 
-	rollbar.SetToken(conf.Token)
-	rollbar.SetEnvironment(conf.Environment)
-	rollbar.SetCodeVersion("v2")
-	rollbar.SetServerHost("web.1")
-	rollbar.SetServerRoot(conf.ServerRoot)
+	client := rollbar.New(conf.Token, conf.Environment, conf.Version, conf.ServerHost, conf.ServerRoot)
 
-	rollbar.Wait()
-
-	return nil
+	return client, nil
 }

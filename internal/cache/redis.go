@@ -8,8 +8,6 @@ import (
 	"github.com/go-redis/redismock/v8"
 )
 
-var _redisClient *redis.Client
-
 func NewCache(ctx context.Context, conf *config.RedisConfig) (*redis.Client, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:               conf.Host,
@@ -22,13 +20,9 @@ func NewCache(ctx context.Context, conf *config.RedisConfig) (*redis.Client, err
 		return nil, err
 	}
 
-	_redisClient = client
-	return _redisClient, nil
+	return client, nil
 }
 
 func NewCacheMock() (*redis.Client, redismock.ClientMock) {
-	var mock redismock.ClientMock
-
-	_redisClient, mock = redismock.NewClientMock()
-	return _redisClient, mock
+	return redismock.NewClientMock()
 }

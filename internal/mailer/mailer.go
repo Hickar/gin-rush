@@ -12,8 +12,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-var _mailer *Mailer
-
 type ConfirmationMessage struct {
 	Username string
 	Email    string
@@ -66,12 +64,7 @@ func NewMailer(conf *config.GmailConfig) (*Mailer, error) {
 		return nil, errors.New("GmailService is nil")
 	}
 
-	_mailer = &Mailer{GmailService: srv}
-	return _mailer, nil
-}
-
-func GetMailer() *Mailer {
-	return _mailer
+	return &Mailer{GmailService: srv}, nil
 }
 
 func (m *Mailer) SendConfirmationCode(username, email, code string) error {
