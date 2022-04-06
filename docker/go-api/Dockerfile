@@ -7,7 +7,7 @@ COPY . .
 
 RUN GOOS=linux CGO_ENABLED=0 go build ./cmd/api
 
-FROM alpine:latest
+FROM alpine:3.15.4
 
 COPY --from=build /app/conf /conf
 COPY --from=build /app/api /server
